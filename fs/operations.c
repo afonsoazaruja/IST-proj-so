@@ -242,18 +242,22 @@ int tfs_unlink(char const *target) {
 
 int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
     int fhandle = tfs_open(source_path, TFS_O_CREAT);
+    ssize_t sizeRead;
     char buffer[128];
 
     if (fhandle == -1)
         return -1;
 
-    while (int sizeRead = tfs_read(fhandle, buffer, sizeof(buffer)) > 0) {
-        if (sizeRead == -1)
-            return -1;
-        int sizeWritten = tfs_write(tfs_open(dest_path, TFS_O_CREAT), buffer,
+    sizeRead= tfs_read(fhandle, buffer, sizeof(buffer));
+    while (sizeRead > 0) {
+        ssize_t sizeWritten = tfs_write(tfs_open(dest_path, TFS_O_CREAT), buffer,
                   sizeof(buffer));
         if (sizeWritten == -1)
             return -1;
+        sizeRead = tfs_read(fhandle, buffer, sizeof(buffer));
     }
+
+    if (sizeRead == -1)
+        return -1;
     return 0;
 }
