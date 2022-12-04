@@ -184,7 +184,6 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
             if (bnum == -1) {
                 return -1; // no space
             }
-
             inode->i_data_block = bnum;
         }
 
@@ -242,10 +241,19 @@ int tfs_unlink(char const *target) {
 }
 
 int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
-    (void)source_path;
-    (void)dest_path;
-    // ^ this is a trick to keep the compiler from complaining about unused
-    // variables. TODO: remove
+    int fhandle = tfs_open(source_path, TFS_O_CREAT);
+    char buffer[];
 
-    PANIC("TODO: tfs_copy_from_external_fs");
+    if (fhandle == -1)
+        return -1;
+
+    while (int sizeRead = tfs_read(fhandle, buffer, 128) > 0) {
+        if (sizeRead == -1)
+            return -1;
+        int sizeWritten = tfs_write(tfs_open(dest_path, TFS_O_CREAT), buffer,
+                  sizeof(buffer));
+        if (sizeWritten == -1)
+            return -1;
+    }
+    return 0;
 }
