@@ -1,12 +1,12 @@
 #include "operations.h"
 #include "config.h"
 #include "state.h"
+#include "betterassert.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "betterassert.h"
 
 tfs_params tfs_default_params() {
     tfs_params params = {
@@ -63,7 +63,7 @@ static bool valid_pathname(char const *name) {
  */
 static int tfs_lookup(char const *name, inode_t const *root_inode) {
     //TODO assert that root_inode is the root directory
-
+    ALWAYS_ASSERT(root_inode != NULL, "tfs_lookup: root dir inode must exist");
     if (!valid_pathname(name)) {
         return -1;
     }
@@ -145,12 +145,10 @@ int tfs_sym_link(char const *target, char const *link_name) {
 }
 
 int tfs_link(char const *target, char const *link_name) {
-    (void)target;
-    (void)link_name;
-    // ^ this is a trick to keep the compiler from complaining about unused
-    // variables. TODO: remove
-
-    PANIC("TODO: tfs_link");
+    inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
+    int inumber = tfs_lookup(target, root_dir_inode);
+    if(inumber == -1) return -1;
+    inode_t *inode_target = inode_get(inumber);
 }
 
 int tfs_close(int fhandle) {
