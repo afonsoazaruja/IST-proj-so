@@ -62,7 +62,8 @@ static bool valid_pathname(char const *name) {
  * Returns the inumber of the file, -1 if unsuccessful.
  */
 static int tfs_lookup(char const *name, inode_t const *root_inode) {
-    // TODO: assert that root_inode is the root directory
+    //TODO assert that root_inode is the root directory
+
     if (!valid_pathname(name)) {
         return -1;
     }
@@ -76,7 +77,6 @@ static int tfs_lookup(char const *name, inode_t const *root_inode) {
 int tfs_open(char const *name, tfs_file_mode_t mode) {
     // Checks if the path name is valid
     if (!valid_pathname(name)) {
-        printf("OLA\n");
         return -1;
     }
 
@@ -244,24 +244,30 @@ int tfs_unlink(char const *target) {
 }
 
 int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
-    int fhandle = tfs_open(source_path, TFS_O_CREAT);
-    ssize_t sizeRead;
-    char buffer[128];
+    
+    FILE *fp = fopen(source_path, "r");
+    
+    if(fp == NULL) return -1;
 
-    printf("AQUI\n");
-    if (fhandle == -1)
-        return -1;
+    char buffer[1024];
 
-    sizeRead= tfs_read(fhandle, buffer, sizeof(buffer));
+    size_t sizeRead = fread(buffer, sizeof(char), sizeof(buffer), fp);
+    if (sizeRead == -1) return -1;
+    int fhandle = tfs_open(dest_path, TFS_O_CREAT);
+    if(fhandle == -1) return -1;
+    ssize_t sizeWritten;
+
     while (sizeRead > 0) {
-        ssize_t sizeWritten = tfs_write(tfs_open(dest_path, TFS_O_CREAT), buffer,
-                  sizeof(buffer));
-        if (sizeWritten == -1)
-            return -1;
-        sizeRead = tfs_read(fhandle, buffer, sizeof(buffer));
-    }
+            sizeWritten = tfs_write(fhandle, buffer, sizeRead);
+            
+            if (sizeWritten == -1) return -1;
+            
+            sizeRead = fread(buffer, sizeof(char), sizeof(buffer), fp);
+            if (sizeRead == -1) return -1;
+        }
 
-    if (sizeRead == -1)
-        return -1;
+    tfs_close(fhandle);
+    fclose(fp);
+
     return 0;
 }
