@@ -76,6 +76,7 @@ static int tfs_lookup(char const *name, inode_t const *root_inode) {
 int tfs_open(char const *name, tfs_file_mode_t mode) {
     // Checks if the path name is valid
     if (!valid_pathname(name)) {
+        printf("OLA\n");
         return -1;
     }
 
@@ -109,12 +110,14 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         // Create inode
         inum = inode_create(T_FILE);
         if (inum == -1) {
+            printf("no space\n");
             return -1; // no space in inode table
         }
 
         // Add entry in the root directory
         if (add_dir_entry(root_dir_inode, name + 1, inum) == -1) {
             inode_delete(inum);
+            printf("no space dir\n");
             return -1; // no space in directory
         }
 
@@ -245,6 +248,7 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
     ssize_t sizeRead;
     char buffer[128];
 
+    printf("AQUI\n");
     if (fhandle == -1)
         return -1;
 
