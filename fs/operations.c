@@ -261,16 +261,17 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
     
     FILE *fp = fopen(source_path, "r");
     
-    if(fp == NULL) return -1;
+    if (fp == NULL) return -1;
 
     char buffer[1024];
 
     size_t sizeRead = fread(buffer, sizeof(char), sizeof(buffer), fp);
     if (sizeRead == -1) return -1;
-    int fhandle = tfs_open(dest_path, TFS_O_CREAT);
-    if(fhandle == -1) return -1;
-    ssize_t sizeWritten;
 
+    int fhandle = tfs_open(dest_path, TFS_O_CREAT);
+    if (fhandle == -1) return -1;
+
+    ssize_t sizeWritten;
     while (sizeRead > 0) {
             sizeWritten = tfs_write(fhandle, buffer, sizeRead);
             
