@@ -86,6 +86,23 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
     int inum = tfs_lookup(name, root_dir_inode);
     size_t offset;
 
+    char buffer[1024];
+    char res[1024];
+
+    ssize_t sizeRead = tfs_read(inum, buffer, sizeof(buffer));
+    if(sizeRead == -1) return -1;
+    if(buffer[0] == '/') {
+        int i = 1;
+        while (sizeRead > 0) {            
+            while(buffer[i] != '\0') {
+                res[i] = buffer[i]; i++;
+            }
+            sizeRead = tfs_read(buffer, sizeof(char), sizeof(buffer));
+            if (sizeRead == -1) return -1;
+        }
+        strncpy(name, res, i);
+    }
+
     if (inum >= 0) {
         // The file already exists
         inode_t *inode = inode_get(inum);
@@ -136,12 +153,11 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
 }
 
 int tfs_sym_link(char const *target, char const *link_name) {
-    (void)target;
-    (void)link_name;
-    // ^ this is a trick to keep the compiler from complaining about unused
-    // variables. TODO: remove
-
-    PANIC("TODO: tfs_sym_link");
+    int fhandle = tfs_open(link_name, TFS_O_CREAT);
+    if(fhandle == -1) return -1;
+    if(tfs_write(fhandle, target, sizeof(target)) == -1) return -1;
+    tfs_close(fhandle);
+    return 0;
 }
 
 int tfs_link(char const *target, char const *link_name) {
