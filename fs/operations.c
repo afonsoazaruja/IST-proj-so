@@ -129,6 +129,7 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
 
     int fhandle = add_to_open_file_table(inum, offset); 
     inode_t *inode_file = inode_get(inum);
+
     if (inode_file->i_node_type == T_SYM_LINK) {
         char buffer[1024];
         char res[1024];
@@ -143,19 +144,15 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
             for(; k < sizeRead; k++) {
                 res[k+start] = buffer[k];
             }
-            start = k + 1;
-        }while(sizeRead > 0);
+            start += k + 1;
+        } while(sizeRead > 0);
 
         if ((inum = tfs_lookup(res, root_dir_inode)) == -1) {
-            open_file_entry_t *file = get_open_file_entry(fhandle);
-            file->of_offset = 0;
-            return fhandle;
+            return -1;
         }
-        return tfs_open(res, TFS_O_CREAT);
+        return tfs_open(res, mode);
     }
 
-    open_file_entry_t *file = get_open_file_entry(fhandle);
-    file->of_offset = 0;
     // Finally, add entry to the open file table and return the corresponding
     // handle
     return fhandle;
@@ -204,6 +201,8 @@ int tfs_link(char const *target, char const *link_name) {
     }
     
     add_dir_entry(root_dir_inode, link_name + 1, inumber_target);
+    inode_t *inode_target = inode_get(inumber_target);
+    inode_target->link_count++;
 
     return 0;
 }
@@ -291,13 +290,19 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
 }
 
 int tfs_unlink(char const *target) {
-    (void) target;
-    /*
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM); 
+    
     int inumber = tfs_lookup(target, root_dir_inode);
     inode_t *inode = inode_get(inumber);
-*/
-    PANIC("TODO");
+    
+    if (clear_dir_entry(root_dir_inode, target) == -1) {
+        return -1;
+    }
+    if (inode->link_count == 1) {
+        data_block_free(inode->i_data_block);
+    }
+    
+    return 0;
 }
 
 int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {

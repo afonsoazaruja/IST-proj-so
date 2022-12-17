@@ -13,8 +13,8 @@
  * Directory entry
  */
 typedef struct {
-    char d_name[MAX_FILE_NAME];
-    int d_inumber;
+    char d_name[MAX_FILE_NAME]; // link name
+    int d_inumber; // inumber original
 } dir_entry_t;
 
 typedef enum { T_FILE, T_DIRECTORY, T_SYM_LINK } inode_type;
