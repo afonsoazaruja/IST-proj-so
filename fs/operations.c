@@ -151,6 +151,8 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         }
 
         if ((inum = tfs_lookup(res, root_dir_inode)) == -1) { // se não existir, então não é um soft-link
+            open_file_entry_t *file = get_open_file_entry(fhandle);
+            file->of_offset = 0;
             return fhandle;
         }
 
