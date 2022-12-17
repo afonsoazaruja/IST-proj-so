@@ -131,14 +131,16 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
     
     char buffer[1024];
     ssize_t sizeRead = tfs_read(fhandle, buffer, sizeof(buffer));
-    if (sizeRead == -1) return -1;
+    if (sizeRead == -1) {
+        return -1;
+    }
     if(sizeRead > 0 && buffer[0] == '/') {
         int start = 0;
         char res[1024];
         while (sizeRead > 0) {            
             int k = 0;
             for(; k < sizeRead; k++) {
-                res[k+start] = buffer[k+start];
+                res[k+start] = buffer[k];
             }
             start = k + 1;
             sizeRead = tfs_read(fhandle, buffer, sizeof(buffer));
@@ -147,10 +149,11 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
                 return -1;
             }
         }
-        if (!valid_pathname(res)) {
-            return -1;
+
+        if ((inum = tfs_lookup(res, root_dir_inode)) == -1) { // se não existir, então não é um soft-link
+            return fhandle;
         }
-        tfs_close(fhandle);
+
         return tfs_open(res, TFS_O_CREAT);
     }
     open_file_entry_t *file = get_open_file_entry(fhandle);
@@ -166,16 +169,25 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
 
 int tfs_sym_link(char const *target, char const *link_name) {
     //TODO O que fazer se o link_name já existe????
-    int fhandle = tfs_open(link_name, TFS_O_CREAT);
+    int fhandle = tfs_open(link_name, TFS_O_CREAT | TFS_O_TRUNC);
     
     if (fhandle == -1) {
         return -1;
     }
     
-    if (tfs_write(fhandle, target, sizeof(target)) == -1) {
+    ssize_t sizeWritten;
+    do {
+        sizeWritten = tfs_write(fhandle, target, sizeof(target));
+        if (sizeWritten == -1) {
+            return -1;
+        }
+
+    }while(sizeWritten);
+
+    if (tfs_close(fhandle) == -1) {
         return -1;
     }
-    tfs_close(fhandle);
+
     return 0;
 }
 
@@ -184,14 +196,11 @@ int tfs_link(char const *target, char const *link_name) {
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
 
     int inumber_target = tfs_lookup(target, root_dir_inode);
-    if(inumber_target == -1) return -1;
+    if (inumber_target == -1) {
+        return -1;
+    }
     
-    inode_t *inode_target = inode_get(inumber_target);
-    
-    if (tfs_open(link_name, TFS_O_CREAT) == -1) return -1;
-    int inumber_link = tfs_lookup(link_name, root_dir_inode);
-    
-    add_dir_entry(inode_target, link_name, inumber_link);
+    add_dir_entry(root_dir_inode, link_name + 1, inumber_target);
 
     return 0;
 }
@@ -279,38 +288,48 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
 }
 
 int tfs_unlink(char const *target) {
-    (void)target;
-    // ^ this is a trick to keep the compiler from complaining about unused
-    // variables. TODO: remove
-
-    PANIC("TODO: tfs_unlink");
+    (void) target;
+    /*
+    inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM); 
+    int inumber = tfs_lookup(target, root_dir_inode);
+    inode_t *inode = inode_get(inumber);
+*/
+    PANIC("TODO");
 }
 
 int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
-    //TODO Se o ficheiro já existe então truncar
     FILE *fp = fopen(source_path, "r");
     
-    if (fp == NULL) return -1;
+    if (fp == NULL) {
+        return -1;
+    }
 
     char buffer[1024];
 
     size_t sizeRead = fread(buffer, sizeof(char), sizeof(buffer), fp);
-    if (sizeRead == -1) return -1;
+    if (sizeRead == -1) {
+        return -1;
+    }
 
-    int fhandle = tfs_open(dest_path, TFS_O_CREAT);
-    if (fhandle == -1) return -1;
+    int fhandle = tfs_open(dest_path, TFS_O_CREAT | TFS_O_TRUNC);
+    if (fhandle == -1) {
+        return -1;
+    }
 
     ssize_t sizeWritten;
     while (sizeRead > 0) {
-            sizeWritten = tfs_write(fhandle, buffer, sizeRead);
-            
-            if (sizeWritten == -1) return -1;
-            
-            sizeRead = fread(buffer, sizeof(char), sizeof(buffer), fp);
-            if (sizeRead == -1) return -1;
-        }
+        sizeWritten = tfs_write(fhandle, buffer, sizeRead);
+        
+        if (sizeWritten == -1) return -1;
+        
+        sizeRead = fread(buffer, sizeof(char), sizeof(buffer), fp);
+        if (sizeRead == -1) return -1;
+    }
 
-    tfs_close(fhandle);
+    if (tfs_close(fhandle) == -1) {
+        return -1;
+    }
+    
     fclose(fp);
 
     return 0;

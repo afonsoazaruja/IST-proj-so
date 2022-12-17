@@ -235,6 +235,7 @@ int inode_create(inode_type i_type) {
         // In case of a new file, simply sets its size to 0
         inode_table[inumber].i_size = 0;
         inode_table[inumber].i_data_block = -1;
+        inode_table[inumber].link_count = 1;
         break;
     default:
         PANIC("inode_create: unknown file type");
@@ -351,7 +352,7 @@ int add_dir_entry(inode_t *inode, char const *sub_name, int sub_inumber) {
             dir_entry[i].d_inumber = sub_inumber;
             strncpy(dir_entry[i].d_name, sub_name, MAX_FILE_NAME - 1);
             dir_entry[i].d_name[MAX_FILE_NAME - 1] = '\0';
-
+            inode->link_count++; // increase number of hardlinks
             return 0;
         }
     }
