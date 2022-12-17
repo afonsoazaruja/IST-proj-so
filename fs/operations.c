@@ -127,10 +127,10 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         return -1;
     }
 
-    int fhandle = add_to_open_file_table(inum, offset); 
     inode_t *inode_file = inode_get(inum);
 
     if (inode_file->i_node_type == T_SYM_LINK) {
+        int fhandle = add_to_open_file_table(inum, 0);
         char buffer[1024];
         char res[1024];
         ssize_t sizeRead;
@@ -148,14 +148,15 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         } while(sizeRead > 0);
 
         if ((inum = tfs_lookup(res, root_dir_inode)) == -1) {
+            tfs_close(fhandle);
             return -1;
         }
         return tfs_open(res, mode);
     }
-
+ 
     // Finally, add entry to the open file table and return the corresponding
     // handle
-    return fhandle;
+    return add_to_open_file_table(inum, offset);
 
     // Note: for simplification, if file was created with TFS_O_CREAT and there
     // is an error adding an entry to the open file table, the file is not
@@ -290,19 +291,17 @@ int tfs_unlink(char const *target) {
     int inumber = tfs_lookup(target, root_dir_inode);
     inode_t *inode = inode_get(inumber);
 
-
-    
+    inode->link_count--;
     if (clear_dir_entry(root_dir_inode, target + 1) == -1) {
         return -1;
     }
-    if (inode->link_count == 1 && inode->i_data_block != -1) {
+    if(inode->link_count == 0 && inode->i_data_block != -1) {
         data_block_free(inode->i_data_block);
         inode_delete(inumber);
     }
-    else if (inode->i_data_block != -1) {
-        inode->link_count--;
+    else if (inode->link_count == 0) {
+        inode_delete(inumber);
     }
-    
     return 0;
 }
 
