@@ -128,36 +128,32 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
     }
 
     int fhandle = add_to_open_file_table(inum, offset); 
-    
-    char buffer[1024];
-    ssize_t sizeRead = tfs_read(fhandle, buffer, sizeof(buffer));
-    if (sizeRead == -1) {
-        return -1;
-    }
-    if(sizeRead > 0 && buffer[0] == '/') {
-        int start = 0;
+    inode_t *inode_file = inode_get(inum);
+    if (inode_file->i_node_type == T_SYM_LINK) {
+        char buffer[1024];
         char res[1024];
-        while (sizeRead > 0) {            
+        ssize_t sizeRead;
+        int start = 0;
+        do {
+            sizeRead = tfs_read(fhandle, buffer, sizeof(buffer));
+            if (sizeRead == -1) {
+                return -1;
+            }
             int k = 0;
             for(; k < sizeRead; k++) {
                 res[k+start] = buffer[k];
             }
             start = k + 1;
-            sizeRead = tfs_read(fhandle, buffer, sizeof(buffer));
-            
-            if (sizeRead == -1) {
-                return -1;
-            }
-        }
+        }while(sizeRead > 0);
 
-        if ((inum = tfs_lookup(res, root_dir_inode)) == -1) { // se não existir, então não é um soft-link
+        if ((inum = tfs_lookup(res, root_dir_inode)) == -1) {
             open_file_entry_t *file = get_open_file_entry(fhandle);
             file->of_offset = 0;
             return fhandle;
         }
-
         return tfs_open(res, TFS_O_CREAT);
     }
+
     open_file_entry_t *file = get_open_file_entry(fhandle);
     file->of_offset = 0;
     // Finally, add entry to the open file table and return the corresponding
@@ -177,6 +173,11 @@ int tfs_sym_link(char const *target, char const *link_name) {
         return -1;
     }
     
+    inode_t * root_dir_inode = inode_get(ROOT_DIR_INUM);
+    int inumber_link = tfs_lookup(link_name, root_dir_inode);
+    inode_t *inode_link = inode_get(inumber_link);
+    inode_link->i_node_type = T_SYM_LINK; // alterar tipo de inode para soft_link
+
     ssize_t sizeWritten;
     do {
         sizeWritten = tfs_write(fhandle, target, sizeof(target));
