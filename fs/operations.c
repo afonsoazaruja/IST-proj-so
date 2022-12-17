@@ -64,6 +64,7 @@ static bool valid_pathname(char const *name) {
 static int tfs_lookup(char const *name, inode_t const *root_inode) {
     //TODO assert that root_inode is the root directory
     ALWAYS_ASSERT(root_inode != NULL, "tfs_lookup: root dir inode must exist");
+    if (root_inode != inode_get(ROOT_DIR_INUM)) return -1;
     if (!valid_pathname(name)) {
         return -1;
     }
@@ -85,23 +86,6 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
                   "tfs_open: root dir inode must exist");
     int inum = tfs_lookup(name, root_dir_inode);
     size_t offset;
-
-    char buffer[1024];
-    char res[1024];
-
-    ssize_t sizeRead = tfs_read(inum, buffer, sizeof(buffer));
-    if(sizeRead == -1) return -1;
-    if(buffer[0] == '/') {
-        int i = 1;
-        while (sizeRead > 0) {            
-            while(buffer[i] != '\0') {
-                res[i] = buffer[i]; i++;
-            }
-            sizeRead = tfs_read(buffer, sizeof(char), sizeof(buffer));
-            if (sizeRead == -1) return -1;
-        }
-        strncpy(name, res, i);
-    }
 
     if (inum >= 0) {
         // The file already exists
@@ -143,9 +127,37 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         return -1;
     }
 
+    int fhandle = add_to_open_file_table(inum, offset); 
+    
+    char buffer[1024];
+    ssize_t sizeRead = tfs_read(fhandle, buffer, sizeof(buffer));
+    if (sizeRead == -1) return -1;
+    if(sizeRead > 0 && buffer[0] == '/') {
+        int start = 0;
+        char res[1024];
+        while (sizeRead > 0) {            
+            int k = 0;
+            for(; k < sizeRead; k++) {
+                res[k+start] = buffer[k+start];
+            }
+            start = k + 1;
+            sizeRead = tfs_read(fhandle, buffer, sizeof(buffer));
+            
+            if (sizeRead == -1) {
+                return -1;
+            }
+        }
+        if (!valid_pathname(res)) {
+            return -1;
+        }
+        tfs_close(fhandle);
+        return tfs_open(res, TFS_O_CREAT);
+    }
+    open_file_entry_t *file = get_open_file_entry(fhandle);
+    file->of_offset = 0;
     // Finally, add entry to the open file table and return the corresponding
     // handle
-    return add_to_open_file_table(inum, offset);
+    return fhandle;
 
     // Note: for simplification, if file was created with TFS_O_CREAT and there
     // is an error adding an entry to the open file table, the file is not
@@ -153,18 +165,35 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
 }
 
 int tfs_sym_link(char const *target, char const *link_name) {
+    //TODO O que fazer se o link_name já existe????
     int fhandle = tfs_open(link_name, TFS_O_CREAT);
-    if(fhandle == -1) return -1;
-    if(tfs_write(fhandle, target, sizeof(target)) == -1) return -1;
+    
+    if (fhandle == -1) {
+        return -1;
+    }
+    
+    if (tfs_write(fhandle, target, sizeof(target)) == -1) {
+        return -1;
+    }
     tfs_close(fhandle);
     return 0;
 }
 
 int tfs_link(char const *target, char const *link_name) {
+    //TODO incrementar hard_link count????
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
-    int inumber = tfs_lookup(target, root_dir_inode);
-    if(inumber == -1) return -1;
-    inode_t *inode_target = inode_get(inumber);
+
+    int inumber_target = tfs_lookup(target, root_dir_inode);
+    if(inumber_target == -1) return -1;
+    
+    inode_t *inode_target = inode_get(inumber_target);
+    
+    if (tfs_open(link_name, TFS_O_CREAT) == -1) return -1;
+    int inumber_link = tfs_lookup(link_name, root_dir_inode);
+    
+    add_dir_entry(inode_target, link_name, inumber_link);
+
+    return 0;
 }
 
 int tfs_close(int fhandle) {
@@ -258,7 +287,7 @@ int tfs_unlink(char const *target) {
 }
 
 int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
-    
+    //TODO Se o ficheiro já existe então truncar
     FILE *fp = fopen(source_path, "r");
     
     if (fp == NULL) return -1;
