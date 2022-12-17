@@ -175,14 +175,9 @@ int tfs_sym_link(char const *target, char const *link_name) {
     inode_t *inode_link = inode_get(inumber_link);
     inode_link->i_node_type = T_SYM_LINK; // alterar tipo de inode para soft_link
 
-    ssize_t sizeWritten;
-    do {
-        sizeWritten = tfs_write(fhandle, target, sizeof(target));
-        if (sizeWritten == -1) {
-            return -1;
-        }
-
-    }while(sizeWritten > 0);
+    if (tfs_write(fhandle, target, sizeof(target)) == -1) {
+        return -1;
+    }
 
     if (tfs_close(fhandle) == -1) {
         return -1;
@@ -294,12 +289,18 @@ int tfs_unlink(char const *target) {
     
     int inumber = tfs_lookup(target, root_dir_inode);
     inode_t *inode = inode_get(inumber);
+
+
     
-    if (clear_dir_entry(root_dir_inode, target) == -1) {
+    if (clear_dir_entry(root_dir_inode, target + 1) == -1) {
         return -1;
     }
-    if (inode->link_count == 1) {
+    if (inode->link_count == 1 && inode->i_data_block != -1) {
         data_block_free(inode->i_data_block);
+        inode_delete(inumber);
+    }
+    else if (inode->i_data_block != -1) {
+        inode->link_count--;
     }
     
     return 0;
