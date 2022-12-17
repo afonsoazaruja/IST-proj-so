@@ -182,7 +182,7 @@ int tfs_sym_link(char const *target, char const *link_name) {
             return -1;
         }
 
-    }while(sizeWritten);
+    }while(sizeWritten > 0);
 
     if (tfs_close(fhandle) == -1) {
         return -1;
