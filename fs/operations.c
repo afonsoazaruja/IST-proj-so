@@ -166,13 +166,16 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
 }
 
 int tfs_sym_link(char const *target, char const *link_name) {
-    int fhandle = tfs_open(link_name, TFS_O_CREAT | TFS_O_TRUNC);
-    
+    inode_t * root_dir_inode = inode_get(ROOT_DIR_INUM);
+
+    if (tfs_lookup(link_name, root_dir_inode) != -1) {
+        return -1;
+    }
+
+    int fhandle = tfs_open(link_name, TFS_O_CREAT);
     if (fhandle == -1) {
         return -1;
     }
-    
-    inode_t * root_dir_inode = inode_get(ROOT_DIR_INUM);
 
     int inumber_link = tfs_lookup(link_name, root_dir_inode);
     if (inumber_link == -1) {
@@ -194,6 +197,10 @@ int tfs_sym_link(char const *target, char const *link_name) {
 
 int tfs_link(char const *target, char const *link_name) {
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
+
+    if (tfs_lookup(link_name, root_dir_inode) != -1) {
+        return -1;
+    }
 
     int inumber_target = tfs_lookup(target, root_dir_inode);
     if (inumber_target == -1) {
