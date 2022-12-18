@@ -203,6 +203,7 @@ int tfs_link(char const *target, char const *link_name) {
     add_dir_entry(root_dir_inode, link_name + 1, inumber_target);
     inode_t *inode_target = inode_get(inumber_target);
 
+    // cannot create hard link for soft link
     if (inode_target->i_node_type == T_SYM_LINK) {
         return -1;
     }
