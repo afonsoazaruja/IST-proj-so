@@ -2,6 +2,7 @@
 #include "config.h"
 #include "state.h"
 #include "betterassert.h"
+#include "lock_control.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
