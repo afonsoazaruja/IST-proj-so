@@ -3,9 +3,11 @@
 #include "state.h"
 #include "betterassert.h"
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 
 
 tfs_params tfs_default_params() {
@@ -60,11 +62,13 @@ static bool valid_pathname(char const *name) {
  *   - name: absolute path name
  *   - root_inode: the root directory inode
  * Returns the inumber of the file, -1 if unsuccessful.
- */
+ **/
+
 static int tfs_lookup(char const *name, inode_t const *root_inode) {
-    //TODO assert that root_inode is the root directory
     ALWAYS_ASSERT(root_inode != NULL, "tfs_lookup: root dir inode must exist");
-    if (root_inode != inode_get(ROOT_DIR_INUM)) return -1;
+    if (root_inode != inode_get(ROOT_DIR_INUM)) {
+        return -1;
+    }
     if (!valid_pathname(name)) {
         return -1;
     }
@@ -101,11 +105,8 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
             }
         }
         // Determine initial offset
-        if (mode & TFS_O_APPEND) {
-            offset = inode->i_size;
-        } else {
-            offset = 0;
-        }
+        offset = (mode & TFS_O_APPEND) ? inode->i_size : 0;
+
     } else if (mode & TFS_O_CREAT) {
         // The file does not exist; the mode specified that it should be created
         // Create inode
@@ -116,13 +117,14 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         }
 
         // Add entry in the root directory
-        if (add_dir_entry(root_dir_inode, name + 1, inum) == -1) {
+        if (add_dir_entry(root_dir_inode, name + 1, inum) == -1)
+        {
             inode_delete(inum);
             printf("no space dir\n");
             return -1; // no space in directory
         }
-
         offset = 0;
+
     } else {
         return -1;
     }
@@ -131,10 +133,10 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
 
     if (inode_file->i_node_type == T_SYM_LINK) {
         int fhandle = add_to_open_file_table(inum, 0);
-        char buffer[1024];
-        char res[1024];
+        char buffer[1024], res[1024];
         ssize_t sizeRead;
         int start = 0;
+
         do {
             sizeRead = tfs_read(fhandle, buffer, sizeof(buffer));
             if (sizeRead == -1) {
@@ -148,7 +150,7 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         } while(sizeRead > 0);
 
         if ((inum = tfs_lookup(res, root_dir_inode)) == -1) {
-            tfs_close(fhandle);
+            tfs_close(fhandle); // necessario?     ///////  ATENCAO  ///////// 
             return -1;
         }
         return tfs_open(res, mode);
@@ -164,7 +166,6 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
 }
 
 int tfs_sym_link(char const *target, char const *link_name) {
-    //TODO O que fazer se o link_name já existe????
     int fhandle = tfs_open(link_name, TFS_O_CREAT | TFS_O_TRUNC);
     
     if (fhandle == -1) {
@@ -172,14 +173,18 @@ int tfs_sym_link(char const *target, char const *link_name) {
     }
     
     inode_t * root_dir_inode = inode_get(ROOT_DIR_INUM);
+
     int inumber_link = tfs_lookup(link_name, root_dir_inode);
+    if (inumber_link == -1) {
+        return -1;
+    } 
+
     inode_t *inode_link = inode_get(inumber_link);
-    inode_link->i_node_type = T_SYM_LINK; // alterar tipo de inode para soft_link
+    inode_link->i_node_type = T_SYM_LINK; // change inode type to soft link
 
     if (tfs_write(fhandle, target, sizeof(target)) == -1) {
         return -1;
     }
-
     if (tfs_close(fhandle) == -1) {
         return -1;
     }
@@ -188,7 +193,6 @@ int tfs_sym_link(char const *target, char const *link_name) {
 }
 
 int tfs_link(char const *target, char const *link_name) {
-    //TODO incrementar hard_link count????
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
 
     int inumber_target = tfs_lookup(target, root_dir_inode);
@@ -198,6 +202,11 @@ int tfs_link(char const *target, char const *link_name) {
     
     add_dir_entry(root_dir_inode, link_name + 1, inumber_target);
     inode_t *inode_target = inode_get(inumber_target);
+
+    if (inode_target->i_node_type == T_SYM_LINK) {
+        return -1;
+    }
+
     inode_target->link_count++;
 
     return 0;
@@ -289,17 +298,21 @@ int tfs_unlink(char const *target) {
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM); 
     
     int inumber = tfs_lookup(target, root_dir_inode);
-    inode_t *inode = inode_get(inumber);
+    if (inumber == -1) {
+        return -1;
+    }
 
+    inode_t *inode = inode_get(inumber);
     inode->link_count--;
+
     if (clear_dir_entry(root_dir_inode, target + 1) == -1) {
         return -1;
     }
-    if(inode->link_count == 0 && inode->i_data_block != -1) {
-        data_block_free(inode->i_data_block);
-        inode_delete(inumber);
-    }
-    else if (inode->link_count == 0) {
+
+    if (inode->link_count == 0) {
+        if (inode->i_data_block != -1) {
+            data_block_free(inode->i_data_block);
+        }
         inode_delete(inumber);
     }
     return 0;
@@ -307,15 +320,7 @@ int tfs_unlink(char const *target) {
 
 int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
     FILE *fp = fopen(source_path, "r");
-    
-    if (fp == NULL) {
-        return -1;
-    }
-
-    char buffer[1024];
-
-    size_t sizeRead = fread(buffer, sizeof(char), sizeof(buffer), fp);
-    if (sizeRead == -1) {
+    if (!fp) {
         return -1;
     }
 
@@ -323,22 +328,20 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
     if (fhandle == -1) {
         return -1;
     }
-
+    
+    char buffer[1024];
+    size_t sizeRead;
     ssize_t sizeWritten;
-    while (sizeRead > 0) {
+
+    while ((sizeRead = fread(buffer, sizeof(char), sizeof(buffer), fp)) > 0) {
         sizeWritten = tfs_write(fhandle, buffer, sizeRead);
-        
-        if (sizeWritten == -1) return -1;
-        
-        sizeRead = fread(buffer, sizeof(char), sizeof(buffer), fp);
-        if (sizeRead == -1) return -1;
+        if (sizeWritten == -1) {
+            return -1;
+        }
     }
 
-    if (tfs_close(fhandle) == -1) {
+    if (tfs_close(fhandle) == -1 || fclose(fp) != 0) {
         return -1;
     }
-    
-    fclose(fp);
-
     return 0;
 }
