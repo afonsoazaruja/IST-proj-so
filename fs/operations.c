@@ -149,8 +149,8 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
             start += k + 1;
         } while(sizeRead > 0);
 
+        tfs_close(fhandle);
         if ((inum = tfs_lookup(res, root_dir_inode)) == -1) {
-            tfs_close(fhandle); // necessario?     ///////  ATENCAO  ///////// 
             return -1;
         }
         return tfs_open(res, mode);
