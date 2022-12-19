@@ -133,25 +133,8 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
     inode_t *inode_file = inode_get(inum);
 
     if (inode_file->i_node_type == T_SYM_LINK) {
-        int fhandle = add_to_open_file_table(inum, 0);
-        char buffer[1024], res[1024];
-        ssize_t sizeRead;
-        int start = 0;
-
-        do {
-            sizeRead = tfs_read(fhandle, buffer, sizeof(buffer));
-            if (sizeRead == -1) {
-                return -1;
-            }
-            int k = 0;
-            for(; k < sizeRead; k++) {
-                res[k+start] = buffer[k];
-            }
-            start += k + 1;
-        } while(sizeRead > 0);
-
-        tfs_close(fhandle);
-        if ((inum = tfs_lookup(res, root_dir_inode)) == -1) {
+        char *res = data_block_get(inode_file->i_data_block);
+        if (tfs_lookup(res, root_dir_inode) == -1) {
             return -1;
         }
         return tfs_open(res, mode);
@@ -186,9 +169,16 @@ int tfs_sym_link(char const *target, char const *link_name) {
     inode_t *inode_link = inode_get(inumber_link);
     inode_link->i_node_type = T_SYM_LINK; // change inode type to soft link
 
-    if (tfs_write(fhandle, target, sizeof(target)) == -1) {
-        return -1;
+    if (inode_link->i_size == 0) {
+        int bnum = data_block_alloc();
+        if (bnum == -1) {
+            return -1;
+        }
+        inode_link->i_data_block = bnum;
+        char *block = data_block_get(bnum);
+        strcpy(block, target);
     }
+
     if (tfs_close(fhandle) == -1) {
         return -1;
     }
