@@ -198,7 +198,7 @@ static int inode_alloc(void) {
             return (int)inumber;
         }
     }
-    rwl_unlock(&inodes_lock);
+    rwl_unlock(&inodes_lock); 
     // no free inodes
     return -1;
 }
