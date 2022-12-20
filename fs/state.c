@@ -25,6 +25,7 @@ static tfs_params fs_params;
 // Inode table
 static inode_t *inode_table;
 static allocation_state_t *freeinode_ts;
+static pthread_rwlock_t freeinode_ts_lock;
 static pthread_rwlock_t inodes_lock;
 
 // Data blocks
@@ -186,19 +187,19 @@ static int inode_alloc(void) {
             insert_delay(); // simulate storage access delay (to freeinode_ts)
         }
 
-        rwl_rdlock(&inodes_lock);
+        rwl_rdlock(&freeinode_ts_lock);
         // Finds first free entry in inode table
         if (freeinode_ts[inumber] == FREE) {
             //  Found a free entry, so takes it for the new inode
-            rwl_unlock(&inodes_lock);
-            rwl_wrlock(&inodes_lock);
+            rwl_unlock(&freeinode_ts_lock);
+            rwl_wrlock(&freeinode_ts_lock);
             freeinode_ts[inumber] = TAKEN;
-            rwl_unlock(&inodes_lock);
+            rwl_unlock(&freeinode_ts_lock);
 
             return (int)inumber;
         }
+        rwl_unlock(&freeinode_ts_lock);
     }
-    rwl_unlock(&inodes_lock); 
     // no free inodes
     return -1;
 }
@@ -231,7 +232,6 @@ int inode_create(inode_type i_type) {
     rwl_unlock(&inodes_lock);
     insert_delay(); // simulate storage access delay (to inode)
     rwl_wrlock(&inodes_lock);
-
     inode->i_node_type = i_type;
     switch (i_type) {
     case T_DIRECTORY: {
@@ -268,7 +268,6 @@ int inode_create(inode_type i_type) {
         inode_table[inumber].link_count = 1;
         break;
     default:
-        rwl_unlock(&inodes_lock);
         PANIC("inode_create: unknown file type");
     }
     rwl_unlock(&inodes_lock);
@@ -291,16 +290,16 @@ void inode_delete(int inumber) {
     ALWAYS_ASSERT(freeinode_ts[inumber] == TAKEN,
                   "inode_delete: inode already freed");
 
-    rwl_rdlock(&inode_table[inumber].inode_lock);
+    rwl_rdlock(&inodes_lock);
     if (inode_table[inumber].i_size > 0) {
         data_block_free(inode_table[inumber].i_data_block);
     }
 
-    rwl_unlock(&inode_table[inumber].inode_lock);
-    // AQUI EH INODES_LOCK??          /// ATENCAO ///           //// ATENCAO ////
-    rwl_wrlock(&inodes_lock);
-    freeinode_ts[inumber] = FREE;
     rwl_unlock(&inodes_lock);
+    // AQUI EH INODES_LOCK??          /// ATENCAO ///           //// ATENCAO ////
+    rwl_wrlock(&freeinode_ts_lock);
+    freeinode_ts[inumber] = FREE;
+    rwl_unlock(&freeinode_ts_lock);
 }
 
 /**
@@ -334,9 +333,9 @@ inode_t *inode_get(int inumber) {
  */
 int clear_dir_entry(inode_t *inode, char const *sub_name) {
     insert_delay();
-    rwl_rdlock(&inode->inode_lock);
+    rwl_rdlock(&inodes_lock);
     if (inode->i_node_type != T_DIRECTORY) {
-        rwl_unlock(&inode->inode_lock);
+        rwl_unlock(&inodes_lock);
         return -1; // not a directory
     }
 
@@ -352,7 +351,7 @@ int clear_dir_entry(inode_t *inode, char const *sub_name) {
             return 0;
         }
     }
-    rwl_unlock(&inode->inode_lock);
+    rwl_unlock(&inodes_lock);
     return -1; // sub_name not found
 }
 
@@ -377,7 +376,7 @@ int add_dir_entry(inode_t *inode, char const *sub_name, int sub_inumber) {
     }
 
     insert_delay(); // simulate storage access delay to inode with inumber
-    rwl_rdlock(&inode->inode_lock);
+    rwl_rdlock(&inodes_lock);
     if (inode->i_node_type != T_DIRECTORY) {
         return -1; // not a directory
     }
@@ -393,15 +392,15 @@ int add_dir_entry(inode_t *inode, char const *sub_name, int sub_inumber) {
             dir_entry[i].d_inumber = sub_inumber;
             strncpy(dir_entry[i].d_name, sub_name, MAX_FILE_NAME - 1);
             dir_entry[i].d_name[MAX_FILE_NAME - 1] = '\0';
-            rwl_unlock(&inode->inode_lock);
-            rwl_wrlock(&inode->inode_lock);
+            rwl_unlock(&inodes_lock);
+            rwl_wrlock(&inodes_lock);
             inode->link_count++; // increase number of hardlinks
-            rwl_unlock(&inode->inode_lock);
+            rwl_unlock(&inodes_lock);
             return 0;
         }
     }
     
-    rwl_unlock(&inode->inode_lock);
+    rwl_unlock(&inodes_lock);
     return -1; // no space for entry
 }
 

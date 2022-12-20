@@ -152,7 +152,11 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
 int tfs_sym_link(char const *target, char const *link_name) {
     inode_t * root_dir_inode = inode_get(ROOT_DIR_INUM);
 
-    if (tfs_lookup(link_name, root_dir_inode) != -1) {
+    if (tfs_lookup(target, root_dir_inode) == -1) { // se não existir o ficheiro de destino
+        return -1;
+    }
+
+    if (tfs_lookup(link_name, root_dir_inode) != -1) { // se já existir um ficheiro com o mesmo nome
         return -1;
     }
 
@@ -328,6 +332,7 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
         return -1;
     }
     
+    int len = 0;
     char buffer[1024];
     size_t sizeRead;
     ssize_t sizeWritten;
@@ -337,6 +342,12 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
         if (sizeWritten == -1) {
             return -1;
         }
+        len += (int)sizeRead;
+    }
+
+    if (len > 1024) {
+        tfs_unlink(dest_path);
+        return -1;
     }
 
     if (tfs_close(fhandle) == -1 || fclose(fp) != 0) {
