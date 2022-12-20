@@ -94,11 +94,11 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
     ALWAYS_ASSERT(root_dir_inode != NULL,
                   "tfs_open: root dir inode must exist");
+    // so 2 threads do not create the same file - let the file be created first
     mutex_lock(&tfs_mutex);
     int inum = tfs_lookup(name, root_dir_inode);
     size_t offset;
 
-    // so 2 threads do not create the same file - let the file be created first
 
     if (inum >= 0) {
         // The file already exists
@@ -152,7 +152,6 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         }
         return tfs_open(res, mode);
     }
-
     // Finally, add entry to the open file table and return the corresponding
     // handle
     return add_to_open_file_table(inum, offset);
@@ -259,11 +258,13 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
         to_write = block_size - file->of_offset;
     }
 
+    mutex_lock(&tfs_mutex);
     if (to_write > 0) {
         if (inode->i_size == 0) {
             // If empty file, allocate new block
             int bnum = data_block_alloc();
             if (bnum == -1) {
+                mutex_unlock(&tfs_mutex);
                 return -1; // no space
             }
             inode->i_data_block = bnum;
@@ -281,7 +282,7 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
             inode->i_size = file->of_offset;
         }
     }
-
+    mutex_unlock(&tfs_mutex);
     return (ssize_t)to_write;
 }
 
