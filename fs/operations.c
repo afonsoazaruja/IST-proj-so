@@ -140,7 +140,7 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         return tfs_open(res, mode);
     }
  
-    // Finally, add entry to the open file table and return the corresponding
+    // Finally,tfs_sym_link add entry to the open file table and return the corresponding
     // handle
     return add_to_open_file_table(inum, offset);
 
@@ -192,6 +192,10 @@ int tfs_sym_link(char const *target, char const *link_name) {
 
 int tfs_link(char const *target, char const *link_name) {
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
+
+    if (tfs_lookup(target, root_dir_inode) == -1) {
+        return -1;
+    }
 
     if (tfs_lookup(link_name, root_dir_inode) != -1) {
         return -1;
@@ -332,7 +336,7 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
         return -1;
     }
     
-    int len = 0;
+    size_t len = 0;
     char buffer[1024];
     size_t sizeRead;
     ssize_t sizeWritten;
@@ -342,10 +346,10 @@ int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
         if (sizeWritten == -1) {
             return -1;
         }
-        len += (int)sizeRead;
+        len += sizeRead;
     }
 
-    if (len > 1024) {
+    if (len > state_block_size()) {
         tfs_unlink(dest_path);
         return -1;
     }
