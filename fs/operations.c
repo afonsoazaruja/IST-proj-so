@@ -10,6 +10,7 @@
 #include <string.h>
 #include <sys/types.h>
 
+static pthread_mutex_t tfs_mutex;
 
 tfs_params tfs_default_params() {
     tfs_params params = {
@@ -29,6 +30,8 @@ int tfs_init(tfs_params const *params_ptr) {
         params = tfs_default_params();
     }
 
+    mutex_init(&tfs_mutex);
+
     if (state_init(params) != 0) {
         return -1;
     }
@@ -46,6 +49,8 @@ int tfs_destroy() {
     if (state_destroy() != 0) {
         return -1;
     }
+    mutex_destroy(&tfs_mutex);
+
     return 0;
 }
 
@@ -92,8 +97,12 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
     int inum = tfs_lookup(name, root_dir_inode);
     size_t offset;
 
+    // so 2 threads do not create the same file - let the file be created first
+    mutex_lock(&tfs_mutex);
+
     if (inum >= 0) {
         // The file already exists
+        mutex_unlock(&tfs_mutex);
         inode_t *inode = inode_get(inum);
         ALWAYS_ASSERT(inode != NULL,
                       "tfs_open: directory files must have an inode");
@@ -113,6 +122,7 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         // Create inode
         inum = inode_create(T_FILE);
         if (inum == -1) {
+            mutex_unlock(&tfs_mutex);
             printf("no space\n");
             return -1; // no space in inode table
         }
@@ -120,13 +130,16 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         // Add entry in the root directory
         if (add_dir_entry(root_dir_inode, name + 1, inum) == -1)
         {
+            mutex_unlock(&tfs_mutex);
             inode_delete(inum);
             printf("no space dir\n");
             return -1; // no space in directory
         }
+        mutex_unlock(&tfs_mutex);
         offset = 0;
 
     } else {
+        mutex_unlock(&tfs_mutex);
         return -1;
     }
 
@@ -140,7 +153,7 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
         return tfs_open(res, mode);
     }
  
-    // Finally,tfs_sym_link add entry to the open file table and return the corresponding
+    // Finally, add entry to the open file table and return the corresponding
     // handle
     return add_to_open_file_table(inum, offset);
 
@@ -152,11 +165,11 @@ int tfs_open(char const *name, tfs_file_mode_t mode) {
 int tfs_sym_link(char const *target, char const *link_name) {
     inode_t * root_dir_inode = inode_get(ROOT_DIR_INUM);
 
-    if (tfs_lookup(target, root_dir_inode) == -1) { // se não existir o ficheiro de destino
+    if (tfs_lookup(target, root_dir_inode) == -1) { // if file target doesn't exist
         return -1;
     }
 
-    if (tfs_lookup(link_name, root_dir_inode) != -1) { // se já existir um ficheiro com o mesmo nome
+    if (tfs_lookup(link_name, root_dir_inode) != -1) { // if link_name already exists
         return -1;
     }
 
@@ -193,7 +206,7 @@ int tfs_sym_link(char const *target, char const *link_name) {
 int tfs_link(char const *target, char const *link_name) {
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
 
-    if (tfs_lookup(target, root_dir_inode) == -1) {
+    if (tfs_lookup(target, root_dir_inode) == -1) { // se não existir o ficheiro de destino
         return -1;
     }
 
@@ -298,14 +311,18 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
         file->of_offset += to_read;
     }
 
-    return (ssize_t)to_read;
+    return (ssize_t) to_read;
 }
 
 int tfs_unlink(char const *target) {
     inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM); 
     
+    /* so it doesn't eliminate a file that is being opened and two threads 
+    do not try to eliminate a file twice */
+    mutex_lock(&tfs_mutex);
     int inumber = tfs_lookup(target, root_dir_inode);
     if (inumber == -1) {
+        mutex_unlock(&tfs_mutex);
         return -1;
     }
 
@@ -313,6 +330,7 @@ int tfs_unlink(char const *target) {
     inode->link_count--;
 
     if (clear_dir_entry(root_dir_inode, target + 1) == -1) {
+        mutex_unlock(&tfs_mutex);
         return -1;
     }
 
@@ -322,6 +340,7 @@ int tfs_unlink(char const *target) {
         }
         inode_delete(inumber);
     }
+    mutex_unlock(&tfs_mutex);
     return 0;
 }
 

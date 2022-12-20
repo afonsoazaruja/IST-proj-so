@@ -227,11 +227,11 @@ int inode_create(inode_type i_type) {
         return -1; // no free slots in inode table
     }
 
-    rwl_rdlock(&inodes_lock);
+    rwl_rdlock(&inode_table_lock[inumber]);
     inode_t *inode = &inode_table[inumber];
     insert_delay(); // simulate storage access delay (to inode)
-    rwl_unlock(&inodes_lock);
-    rwl_wrlock(&inodes_lock);
+    rwl_unlock(&inode_table_lock[inumber]);
+    rwl_wrlock(&inode_table_lock[inumber]);
     inode->i_node_type = i_type;
     switch (i_type) {
     case T_DIRECTORY: {
@@ -245,7 +245,7 @@ int inode_create(inode_type i_type) {
 
             // run regular deletion process
             inode_delete(inumber);
-            rwl_unlock(&inodes_lock);
+            rwl_unlock(&inode_table_lock[inumber]);
             return -1;
         }
 
@@ -270,7 +270,7 @@ int inode_create(inode_type i_type) {
     default:
         PANIC("inode_create: unknown file type");
     }
-    rwl_unlock(&inodes_lock);
+    rwl_unlock(&inode_table_lock[inumber]);
     return inumber;
 }
 
@@ -290,13 +290,12 @@ void inode_delete(int inumber) {
     ALWAYS_ASSERT(freeinode_ts[inumber] == TAKEN,
                   "inode_delete: inode already freed");
 
-    rwl_rdlock(&inodes_lock);
+    rwl_rdlock(&inode_table_lock[inumber]);
     if (inode_table[inumber].i_size > 0) {
         data_block_free(inode_table[inumber].i_data_block);
     }
 
-    rwl_unlock(&inodes_lock);
-    // AQUI EH INODES_LOCK??          /// ATENCAO ///           //// ATENCAO ////
+    rwl_unlock(&inode_table_lock[inumber]);
     rwl_wrlock(&freeinode_ts_lock);
     freeinode_ts[inumber] = FREE;
     rwl_unlock(&freeinode_ts_lock);
@@ -314,7 +313,6 @@ inode_t *inode_get(int inumber) {
     ALWAYS_ASSERT(valid_inumber(inumber), "inode_get: invalid inumber");
 
     insert_delay(); // simulate storage access delay to inode
-    // NECESSARIO RWL_LOCK???    /// ATENCAO ///    //// ATENCAO ////
     return &inode_table[inumber];
 }
 
