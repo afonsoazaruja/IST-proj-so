@@ -195,7 +195,6 @@ static int inode_alloc(void) {
             rwl_wrlock(&freeinode_ts_lock);
             freeinode_ts[inumber] = TAKEN;
             rwl_unlock(&freeinode_ts_lock);
-
             return (int)inumber;
         }
         rwl_unlock(&freeinode_ts_lock);

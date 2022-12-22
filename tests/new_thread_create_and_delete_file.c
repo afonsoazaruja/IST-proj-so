@@ -46,7 +46,7 @@ int main() {
     pthread_join(tid[0], NULL);
     pthread_join(tid[1], NULL);
 
-    // file doesn't exist
+    // assert that file doesn't exist
     assert(tfs_open(path, TFS_O_APPEND) == -1); 
 
     printf("Successful test.\n");

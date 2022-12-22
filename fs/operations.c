@@ -323,7 +323,7 @@ int tfs_unlink(char const *target) {
     mutex_lock(&tfs_mutex);
     int inumber = tfs_lookup(target, root_dir_inode);
     if (inumber == -1) {
-        mutex_unlock(&tfs_mutex);
+    mutex_unlock(&tfs_mutex);
         return -1;
     }
 
