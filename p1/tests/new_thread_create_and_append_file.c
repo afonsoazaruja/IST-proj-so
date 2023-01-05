@@ -31,6 +31,7 @@ int main() {
         fprintf(stderr, "failed to create create_file thread: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
+    sleep(1);
     if (pthread_create(&tid[1], NULL, create_file, (void*)&path) != 0) {
         fprintf(stderr, "failed to create create_file thread: %s\n", strerror(errno));
         exit(EXIT_FAILURE);

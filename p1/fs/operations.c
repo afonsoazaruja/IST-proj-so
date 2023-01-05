@@ -232,13 +232,15 @@ int tfs_link(char const *target, char const *link_name) {
 }
 
 int tfs_close(int fhandle) {
+    mutex_lock(&tfs_mutex);
     open_file_entry_t *file = get_open_file_entry(fhandle);
     if (file == NULL) {
+        mutex_unlock(&tfs_mutex);
         return -1; // invalid fd
     }
 
     remove_from_open_file_table(fhandle);
-
+    mutex_unlock(&tfs_mutex);
     return 0;
 }
 

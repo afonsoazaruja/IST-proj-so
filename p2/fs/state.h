@@ -13,11 +13,11 @@
  * Directory entry
  */
 typedef struct {
-    char d_name[MAX_FILE_NAME]; // link name
-    int d_inumber; // inumber original
+    char d_name[MAX_FILE_NAME];
+    int d_inumber;
 } dir_entry_t;
 
-typedef enum { T_FILE, T_DIRECTORY, T_SYM_LINK } inode_type;
+typedef enum { T_FILE, T_DIRECTORY } inode_type;
 
 /**
  * Inode
@@ -27,7 +27,7 @@ typedef struct {
 
     size_t i_size;
     int i_data_block;
-    int link_count; //NEW
+
     // in a more complete FS, more fields could exist here
 } inode_t;
 

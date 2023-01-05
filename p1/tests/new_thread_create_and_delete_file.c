@@ -33,10 +33,11 @@ int main() {
 
     pthread_t tid[2];
 
-   if (pthread_create(&tid[0], NULL, create_file, (void*)&path) != 0) {
+    if (pthread_create(&tid[0], NULL, create_file, (void*)&path) != 0) {
         fprintf(stderr, "failed to create create_file thread: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
+    sleep(1);
 
     if (pthread_create(&tid[1], NULL, delete_file, (void*)&path) != 0) {
         fprintf(stderr, "failed to create delete_file thread: %s\n", strerror(errno));
