@@ -1,6 +1,6 @@
-#include "logging.h"
-#include "fs/operations.h"
-#include "utils/fifo.h"
+#include "../utils/logging.h"
+#include "../fs/operations.h"
+#include "../utils/fifo.h"
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -40,5 +40,4 @@ int main(int argc, char **argv) {
     }
 
     return 0;
-
 }

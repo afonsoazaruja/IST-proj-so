@@ -1,5 +1,5 @@
-#include "logging.h"
-#include "utils/fifo.h"
+#include "../utils/logging.h"
+#include "../utils/fifo.h"
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -28,12 +28,13 @@ int main(int argc, char **argv) {
     int tx = open("fifo", O_WRONLY);
     ssize_t ret;
     while(true) {
-        if (scanf("%s", buffer) == 0) {
-            return 0;
+        if (scanf("%s", buffer) != 1) {
+            fprintf(stderr, "Failed to read input.");
         }
         ret = write(tx, buffer, BUFFER_SIZE - 1);
         if (ret == -1) {
-            return 0;
+            fprintf(stderr, "Error.");
+            return -1;
         }
     }
     return 0;
