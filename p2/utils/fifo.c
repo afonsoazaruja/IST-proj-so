@@ -15,7 +15,7 @@
 #include <unistd.h>
 
 void makefifo(const char *path) {
-    if (mkfifo(path, 0777) == -1) {
+    if (mkfifo(path, 0644) == -1) {
         fprintf(stderr, "[ERR]: mkfifo failed: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
