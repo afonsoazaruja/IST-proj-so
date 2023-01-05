@@ -41,15 +41,18 @@ int main(int argc, char **argv) {
 
     ssize_t ret;
     ssize_t ack_ret;
+    char buffer[BUFFER_SIZE];
+   
     while(true) {
-        char buffer[BUFFER_SIZE];
         ret = read(rx, buffer, BUFFER_SIZE - 1);
         if (ret <= 0) {
             break;
         }
         buffer[ret] = 0;
         fputs(buffer, stdout);        
+        
         ack_ret = write(ack_tx, "A", 1);
+        
         if (ack_ret < 0) {
             fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
             exit(EXIT_FAILURE);

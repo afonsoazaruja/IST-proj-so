@@ -37,15 +37,19 @@ int main(int argc, char **argv) {
 
     ssize_t ret;
     ssize_t ack_ret;
-    while(!feof(stdin)) {
-        if (scanf("%s", buffer) != 1) {
-            fprintf(stderr, "Failed to read input.");
+    // utilizar o fgets 
+    while(true) {
+        if (fgets(buffer, BUFFER_SIZE, stdin) == NULL) {
+            break;
         }
+
         ret = write(tx, buffer, BUFFER_SIZE - 1);
+
         if (ret == -1) {
             fprintf(stderr, "Error.");
             return -1;
         }
+
         ack_ret = read(ack_rx, &ack, 1);
         if (ack_ret < 0) {
            fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
