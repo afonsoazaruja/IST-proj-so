@@ -1,16 +1,25 @@
 #include "logging.h"
+#include <string.h>
 
 static void print_usage() {
     fprintf(stderr, "usage: \n"
-                    "   manager <register_pipe_name> create <box_name>\n"
-                    "   manager <register_pipe_name> remove <box_name>\n"
-                    "   manager <register_pipe_name> list\n");
+                    "   manager <register_pipe_name> <pipe_name> create <box_name>\n"
+                    "   manager <register_pipe_name> <pipe_name> remove <box_name>\n"
+                    "   manager <register_pipe_name> <pipe_name> list\n");
 }
 
 int main(int argc, char **argv) {
-    (void)argc;
-    (void)argv;
-    print_usage();
-    WARN("unimplemented"); // TODO: implement
-    return -1;
+    if (argc == 4 && strcmp(argv[3], "list") != 0) {
+        print_usage();
+        return -1;
+    }
+    if (argc == 5 && strcmp(argv[3], "create") != 0 && strcmp(argv[3], "remove")!= 0) {
+        print_usage();
+        return -1;
+    }
+    if (argc != 4 && argc != 5) {
+        print_usage();
+        return -1;
+    }
+    return 0;
 }

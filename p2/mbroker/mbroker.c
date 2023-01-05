@@ -1,9 +1,12 @@
 #include "logging.h"
 
 int main(int argc, char **argv) {
-    (void)argc;
-    (void)argv;
-    fprintf(stderr, "usage: mbroker <pipename>\n");
-    WARN("unimplemented"); // TODO: implement
-    return -1;
+    (void) argv;
+    if (argc != 3) {
+        fprintf(stderr, "usage: mbroker <register_pipe_name> <max_sessions>\n");
+        return -1;
+    }
+    
+    return 0;
+
 }
