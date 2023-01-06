@@ -34,11 +34,12 @@ int main(int argc, char **argv) {
     char buffer[BUFFER_SIZE];
     memset(buffer, 0, BUFFER_SIZE-1);
     buffer[0] = (char)2;
-    memcpy(buffer+1, pipe_name, strlen(pipe_name));
-    memcpy(buffer+257, box_name, strlen(box_name));
 
-    printf("%s\n", buffer);
-    puts(buffer);
+    size_t pipe_name_len = strlen(pipe_name);
+    size_t box_name_len = strlen(box_name);
+
+    memcpy(buffer+1, pipe_name, pipe_name_len);
+    memcpy(buffer+1+256, box_name, box_name_len);
 
     // open pipe to send request to mbroker
     int fserv = open(register_pipe_name, O_WRONLY);

@@ -16,54 +16,33 @@
 
 #define BUFFER_SIZE 1024
 
-int fcli;
+int fcli, fserv;
 
-void request_handler(char *request) {
-    char *pipe_name = NULL;
-    char *box_name = NULL;
-    switch((uint8_t)request[0]) {
+void request_handler(char *op_code) {
+    char buffer[BUFFER_SIZE];
+    char pipe_name[256];
+    char box_name[32];
+    switch((uint8_t)op_code[0]) {
         case (uint8_t)1:
-            sscanf(request+1, "%s %s", pipe_name, box_name);
-            // clear buffer to send response to client
-            memset(request, 0, BUFFER_SIZE-1);
-            //int v = tfs_open(&box_name, TFS_O_APPEND);
-            int v = 0;
-            // open pipe_name in O_WRONLY to send response to client
-            fcli = open(pipe_name, O_WRONLY);
-            ssize_t ret;
-            if (v == -1) {
-                fprintf(stderr, "ERROR: Could not connect publisher\n");
-                memcpy(request, "-1", 3);
-                ret = write(fcli, request, BUFFER_SIZE-1);
-                if (ret < 0) exit(-1);
-                close(fcli);
-            }
-            else { 
-                fprintf(stdout, "SUCCESS: Publisher connected\n");
-                memcpy(request, "0", 2);
-                ret = write(fcli, request, BUFFER_SIZE-1);
-                if (ret < 0) exit(-1);
-                close(fcli);
-                open(pipe_name, O_RDONLY);
-            }
-            break;
         case (uint8_t)2:
-            sscanf(request+1, "%s %s", pipe_name, box_name);
-            memset(request, 0, BUFFER_SIZE-1);
-            /*
-            int v = 0;
-            if (v == -1) break;
-            else {
-            */
-                puts("SUCCESS: Subscriber connected");
-                //fprintf(stdout, "SUCCESS: Subscriber connected\n");
+            ssize_t ret;
+            // read pipe_name
+            ret = read(fserv, buffer, 256);
+            if (ret < 0) exit(EXIT_FAILURE);
+            memcpy(pipe_name, buffer, 256);
+            // read box_name
+            ret = read(fserv, buffer+256, 32);
+            if (ret < 0) exit(EXIT_FAILURE);
+            memcpy(box_name, buffer+256, 32);
+
+            puts("SUCCESS: Subscriber connected");
+        case (uint8_t)3:
         default:
             return;
     }
 }
 
 int main(int argc, char **argv) {
-    int fserv;
     ssize_t ret;
     if (argc != 3) {
         fprintf(stderr, "usage: mbroker <register_pipe_name> <max_sessions>\n");
@@ -84,12 +63,12 @@ int main(int argc, char **argv) {
     fserv = open(register_pipe_name, O_RDONLY);
     if (fserv < 0) return -1;
 
-    // keep reading requests from clients
-    char buffer[BUFFER_SIZE];
+    // keep reading op_codes from clients
+    char op_code[1];
     while(true) {
-        ret = read(fserv, buffer, BUFFER_SIZE-1);
+        ret = read(fserv, op_code, 1);
         if (ret <= 0) break;
-        request_handler(buffer);
+        request_handler(op_code);
     }
     close(fcli);
     close(fserv);
