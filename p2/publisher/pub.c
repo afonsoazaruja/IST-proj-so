@@ -1,11 +1,12 @@
-#include "../utils/logging.h"
-#include "../utils/fifo.h"
+#include "utils/logging.h"
+#include "utils/fifo.h"
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -13,8 +14,6 @@
 #include <unistd.h>
 
 #define BUFFER_SIZE 1024
-#define PIPE "/tmp/tst"
-#define PIPE_ACK "/tmp/ack"
 
 int main(int argc, char **argv) {
     (void)argv;
@@ -24,25 +23,48 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    //makefifo("pub1");
-    char buffer[BUFFER_SIZE];
+    char *register_pipe_name = argv[1];
+    char *pipe_name = argv[2];
+    char *box_name = argv[3];
 
-    int tx = open(PIPE, O_WRONLY);
-    if (tx < 0) return -1;
+    // make pipe_name
+    unlink(register_pipe_name);
+    makefifo(pipe_name);
+
+    // open pipe to send request to mbroker
+    int fserv = open(register_pipe_name, O_WRONLY);
+    if (fserv < 0) return -1;
     
-    int ack_rx = open(PIPE_ACK, O_RDONLY);
-    if (ack_rx < 0) return -1;
+    // open pipe to receive response from mbroker
+    int fcli = open(pipe_name, O_RDONLY);
+    if (fcli < 0) return -1;
 
-    char ack;
+    // build request
+    char buffer[BUFFER_SIZE];
+    buffer[0] = (char)1;
+    memset(buffer, 0, BUFFER_SIZE-1);
+    memcpy(buffer+1, pipe_name, 256);
+    memcpy(buffer+1+256, box_name, 32);
 
+    ssize_t check;
+    // send request to mbroker
+    check = write(fserv, buffer, BUFFER_SIZE-1);
+    if (check < 0) return -1;
+    // read response from mbroker
+    memset(buffer, 0, BUFFER_SIZE-1);
+    check = read(fcli, buffer, BUFFER_SIZE-1);
+    // do something with that...
+    close(fcli);
+    if (strcmp(buffer, "-1") == 0) {
+        return -1;
+    }
+    fcli = open(pipe_name, O_WRONLY);
+    if (fcli < 0) return -1;
+    printf("aqui\n");
+
+/*
     ssize_t ret;
-    ssize_t ack_ret;
-    // utilizar o fgets 
-    while(true) {
-        if (fgets(buffer, BUFFER_SIZE, stdin) == NULL) {
-            break;
-        }
-
+    while(fgets(buffer, BUFFER_SIZE, stdin) != NULL) {
         ret = write(tx, buffer, BUFFER_SIZE - 1);
 
         if (ret == -1) {
@@ -58,5 +80,6 @@ int main(int argc, char **argv) {
     }
     close(ack_rx);
     close(tx);
+*/
     return 0;
 }

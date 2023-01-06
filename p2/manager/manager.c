@@ -21,5 +21,18 @@ int main(int argc, char **argv) {
         print_usage();
         return -1;
     }
+
+    /*
+    char mode = argv[3];
+    switch(mode) {
+        case :
+            break;
+        case "remove":
+            break;
+        case list:
+        default:
+            break;
+    }
+    */
     return 0;
 }
