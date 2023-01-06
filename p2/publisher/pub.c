@@ -23,23 +23,20 @@ int main(int argc, char **argv) {
         return -1;
     }
 
+    // get initial arguments
     char *register_pipe_name = argv[1];
     char *pipe_name = argv[2];
     char *box_name = argv[3];
 
     // make pipe_name
-    unlink(register_pipe_name);
+    unlink(pipe_name);
     makefifo(pipe_name);
 
     // open pipe to send request to mbroker
     int fserv = open(register_pipe_name, O_WRONLY);
     if (fserv < 0) return -1;
     
-    // open pipe to receive response from mbroker
-    int fcli = open(pipe_name, O_RDONLY);
-    if (fcli < 0) return -1;
-
-    // build request
+    // build request from publisher
     char buffer[BUFFER_SIZE];
     buffer[0] = (char)1;
     memset(buffer, 0, BUFFER_SIZE-1);
@@ -50,18 +47,26 @@ int main(int argc, char **argv) {
     // send request to mbroker
     check = write(fserv, buffer, BUFFER_SIZE-1);
     if (check < 0) return -1;
+    
+    // open pipe to receive response from mbroker
+    int fcli = open(pipe_name, O_RDONLY);
+    if (fcli < 0) return -1;
+    
     // read response from mbroker
     memset(buffer, 0, BUFFER_SIZE-1);
     check = read(fcli, buffer, BUFFER_SIZE-1);
+    
     // do something with that...
+    // close pipe to open it in O_WRONLY because it is a publisher
     close(fcli);
     if (strcmp(buffer, "-1") == 0) {
         return -1;
     }
     fcli = open(pipe_name, O_WRONLY);
-    if (fcli < 0) return -1;
-    printf("aqui\n");
+    fprintf(stdout, "SUCCESS\n");
 
+    //close(fserv);
+    //if (fcli < 0) return -1;
 /*
     ssize_t ret;
     while(fgets(buffer, BUFFER_SIZE, stdin) != NULL) {

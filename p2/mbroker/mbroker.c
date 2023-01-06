@@ -16,36 +16,46 @@
 
 #define BUFFER_SIZE 1024
 
-int get_request(char *request) {
+int fcli;
+
+void request_handler(char *request) {
     switch((uint8_t)request[0]) {
         case (uint8_t)1:
-            char pipe_name, box_name;
-            sscanf(request+1, "%s %s", &pipe_name, &box_name);
+            char *pipe_name = NULL;
+            char *box_name = NULL;
+            sscanf(request+1, "%s %s", pipe_name, box_name);
+            // clear buffer to send response to client
+            memset(request, 0, BUFFER_SIZE-1);
             //int v = tfs_open(&box_name, TFS_O_APPEND);
             int v = 0;
-            int fcli = open(&pipe_name, O_WRONLY);
+            // open pipe_name in O_WRONLY to send response to client
+            fcli = open(pipe_name, O_WRONLY);
             ssize_t ret;
             if (v == -1) {
-                ret = write(fcli, "-1", 3);
-                if (ret < 0) return -1;
+                fprintf(stderr, "ERROR: Could not connect publisher\n");
+                memcpy(request, "-1", 3);
+                ret = write(fcli, request, BUFFER_SIZE-1);
+                if (ret < 0) exit(-1);
                 close(fcli);
-                open(&pipe_name, O_RDONLY);
             }
             else { 
-                ret = write(fcli, "0", 2);
-                if (ret < 0) return -1;
+                fprintf(stdout, "SUCCESS: Publisher connected\n");
+                memcpy(request, "0", 2);
+                ret = write(fcli, request, BUFFER_SIZE-1);
+                if (ret < 0) exit(-1);
                 close(fcli);
+                open(pipe_name, O_RDONLY);
             }
             break;
         default:
-            return -1;
+            return;
     }
-    return 0;
 }
 
 
 int main(int argc, char **argv) {
-    (void) argv;
+    int fserv;
+    ssize_t ret;
     if (argc != 3) {
         fprintf(stderr, "usage: mbroker <register_pipe_name> <max_sessions>\n");
         return -1;
@@ -56,30 +66,23 @@ int main(int argc, char **argv) {
     }
 
     char *register_pipe_name = argv[1];
+
+    // /make register_pipe_name
     unlink(register_pipe_name);
     makefifo(register_pipe_name);
 
-    int fserv = open(register_pipe_name, O_RDONLY);
+    // open register pipe
+    fserv = open(register_pipe_name, O_RDONLY);
     if (fserv < 0) return -1;
-    char request[BUFFER_SIZE];
-    ssize_t req;
-    req = read(fserv, request, BUFFER_SIZE-1);
-    if (req < 0) return -1; 
-    get_request(request);
 
-/*
-    ssize_t ret;
+    // keep reading requests from clients
     char buffer[BUFFER_SIZE];
-   
     while(true) {
-        ret = read(fserv, buffer, BUFFER_SIZE - 1);
-        if (ret < 0) {
-            exit(-1);
-        }
-        buffer[ret] = 0;
-        fputs(buffer, stdout);        
+        ret = read(fserv, buffer, BUFFER_SIZE-1);
+        if (ret <= 0) break;
+        request_handler(buffer);
     }
+    close(fcli);
     close(fserv);
     return 0;
-*/
 }
