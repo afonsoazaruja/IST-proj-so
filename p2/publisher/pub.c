@@ -38,8 +38,8 @@ int main(int argc, char **argv) {
     
     // build request from publisher
     char buffer[BUFFER_SIZE];
-    buffer[0] = (char)1;
     memset(buffer, 0, BUFFER_SIZE-1);
+    buffer[0] = (char)1;
     memcpy(buffer+1, pipe_name, 256);
     memcpy(buffer+1+256, box_name, 32);
 

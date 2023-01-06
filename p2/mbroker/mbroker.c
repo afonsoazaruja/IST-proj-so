@@ -19,10 +19,10 @@
 int fcli;
 
 void request_handler(char *request) {
+    char *pipe_name = NULL;
+    char *box_name = NULL;
     switch((uint8_t)request[0]) {
         case (uint8_t)1:
-            char *pipe_name = NULL;
-            char *box_name = NULL;
             sscanf(request+1, "%s %s", pipe_name, box_name);
             // clear buffer to send response to client
             memset(request, 0, BUFFER_SIZE-1);
@@ -47,11 +47,20 @@ void request_handler(char *request) {
                 open(pipe_name, O_RDONLY);
             }
             break;
+        case (uint8_t)2:
+            sscanf(request+1, "%s %s", pipe_name, box_name);
+            memset(request, 0, BUFFER_SIZE-1);
+            /*
+            int v = 0;
+            if (v == -1) break;
+            else {
+            */
+                puts("SUCCESS: Subscriber connected");
+                //fprintf(stdout, "SUCCESS: Subscriber connected\n");
         default:
             return;
     }
 }
-
 
 int main(int argc, char **argv) {
     int fserv;
