@@ -10,15 +10,15 @@ static void print_usage() {
 }
 
 int main(int argc, char **argv) {
+    if (argc != 4 && argc != 5) {
+        print_usage();
+        return -1;
+    }
     if (argc == 4 && strcmp(argv[3], "list") != 0) {
         print_usage();
         return -1;
     }
     if (argc == 5 && strcmp(argv[3], "create") != 0 && strcmp(argv[3], "remove")!= 0) {
-        print_usage();
-        return -1;
-    }
-    if (argc != 4 && argc != 5) {
         print_usage();
         return -1;
     }
@@ -34,8 +34,12 @@ int main(int argc, char **argv) {
             break;
     }
     */
-    if (argc == 5 && strcmp(argv[3], "create") != 0) {
+    if (strcmp(argv[3], "create") == 0) {
         if (send_request(3, argv[1], argv[2], argv[4]) == -1) return -1;
+    } else if (strcmp(argv[3], "remove") == 0) {
+        if (send_request(5, argv[1], argv[2], argv[4]) == -1) return -1;
+    } else {
+        if (send_request_to_list_boxes(7, argv[1], argv[2]) == -1) return -1;
     }
 
     return 0;

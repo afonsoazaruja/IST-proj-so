@@ -58,6 +58,15 @@ void request_handler(char *op_code) {
             puts("SUCCESS: Box created");
             break;
         case 4:
+
+        case 5:
+            read_data(buffer, pipe_name, box_name);
+            puts("SUCCESS: Box removed");
+            break;
+        case 7:
+            read_data(buffer, pipe_name, box_name);
+            puts("SUCCESS: Boxes listed");
+            break;
             
         default: return;
     }
