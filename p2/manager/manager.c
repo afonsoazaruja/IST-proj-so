@@ -1,5 +1,6 @@
-#include "logging.h"
+#include "../utils/logging.h"
 #include <string.h>
+#include "../utils/request_control.h"
 
 static void print_usage() {
     fprintf(stderr, "usage: \n"
@@ -21,7 +22,6 @@ int main(int argc, char **argv) {
         print_usage();
         return -1;
     }
-
     /*
     char mode = argv[3];
     switch(mode) {
@@ -34,5 +34,9 @@ int main(int argc, char **argv) {
             break;
     }
     */
+    if (argc == 5 && strcmp(argv[3], "create") != 0) {
+        if (send_request(3, argv[1], argv[2], argv[4]) == -1) return -1;
+    }
+
     return 0;
 }
