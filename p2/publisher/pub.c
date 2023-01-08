@@ -16,34 +16,36 @@ int main(int argc, char **argv) {
         fprintf(stderr, "usage: pub <register_pipe_name> <pipe_name> <box_name>\n");
         return -1;
     }
-
-   if (send_request(1, argv[1], argv[2], argv[3]) == -1) return -1;
-
-    // make pipe_name
+    char *register_pipe_name = argv[1];
     char *pipe_name = argv[2];
+    char *box_name = argv[3];
+    
+    // make pipe_name
     unlink(pipe_name);
     makefifo(pipe_name);
+
+   if (send_request(1, register_pipe_name, pipe_name, box_name) == -1) return -1;
 
     // open pipe to receive response from mbroker
     int fcli = open(pipe_name, O_RDONLY);
     if (fcli < 0) return -1;
 
     // read response from mbroker
-    char buffer[BUFFER_SIZE];
-    ssize_t ret = read(fcli, buffer, BUFFER_SIZE-1);
+    // char buffer[BUFFER_SIZE];
+    char code[3];
+    ssize_t ret = read(fcli, &code, 3);
     if (ret < 0) return -1;
-
-    if (strcmp(buffer, "Connection refused") == 0) {
-        // (...)
-    } else {
-        // (...)
+        
+    if (strcmp(code, "0") == 0) {
+        puts("SUCCESS: publisher created\n");
+    }
+    else if (strcmp(code, "-1") == 0){
+        fprintf(stderr, "ERROR: cannot create publisher\n");
+        return -1;        
     }
     
     // close pipe to open it in O_WRONLY because it is a publisher
     close(fcli);
-    if (strcmp(buffer, "-1") == 0) {
-        return -1;
-    }
     fcli = open(pipe_name, O_WRONLY);
     fprintf(stdout, "SUCCESS\n");
 

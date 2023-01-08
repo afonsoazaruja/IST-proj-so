@@ -17,12 +17,15 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    if (send_request(2, argv[1], argv[2], argv[3]) == -1) return -1;
+    char *register_pipe_name = argv[1];
+    char *pipe_name = argv[2];
+    char *box_name = argv[3];
 
     // make pipe_name
-    char *pipe_name = argv[2];
     unlink(pipe_name);
     makefifo(pipe_name);
+    
+    if (send_request(2, register_pipe_name, pipe_name, box_name) == -1) return -1;
 
     // open pipe to receive response from mbroker
     int fcli = open(pipe_name, O_RDONLY);
