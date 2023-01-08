@@ -24,6 +24,7 @@ int send_request(int code, char *register_pipe_name, char *pipe_name, char *box_
     // send request to mbroker
     ssize_t ret = write(fserv, buffer, sizeof(buffer));
     if (ret < 0) return -1;
+
     close(fserv);
     return 0;
 }

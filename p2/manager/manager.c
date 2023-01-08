@@ -1,5 +1,5 @@
 #include "../utils/logging.h"
-#include "../utils/request_control.h"
+#include "../utils/requests.h"
 #include "../utils/fifo.h"
 #include <string.h>
 #include <assert.h>
@@ -31,12 +31,13 @@ int response_handler(char *op_code) {
     ssize_t ret;
     char r_code[1];
     char err_msg[ERR_SIZE];
+
     switch((uint8_t)op_code[0]) { // TODO CONVERSAO DO RETURN CODE ESTA MAL POR ISSO DA SEMPRE SUCCESS
         case 4:
             // read return code
             ret = read(fcli, r_code, 1);
             if (ret < 0) exit(EXIT_FAILURE);
-            if ((uint32_t)r_code[0] < 0) { // if box wasn't created or removed
+            if ((int32_t)r_code[0] < 0) { // if box wasn't created or removed
                 ret = read(fcli, err_msg, ERR_SIZE-1);
                 if (ret < 0) exit(EXIT_FAILURE);
                 puts(err_msg);
@@ -49,7 +50,7 @@ int response_handler(char *op_code) {
             // read return code
             ret = read(fcli, r_code, 1);
             if (ret < 0) exit(EXIT_FAILURE);
-            if ((uint32_t)r_code[0] < 0) { // if box wasn't created or removed
+            if ((int32_t)r_code[0] < 0) { // if box wasn't created or removed
                 ret = read(fcli, err_msg, ERR_SIZE-1);
                 if (ret < 0) exit(EXIT_FAILURE);
                 puts(err_msg);
@@ -67,23 +68,17 @@ int response_handler(char *op_code) {
 }
 
 int main(int argc, char **argv) {
-    if (argc != 4 && argc != 5) {
-        print_usage();
-        return -1;
-    }
-    if (argc == 4 && strcmp(argv[3], "list") != 0) {
-        print_usage();
-        return -1;
-    }
-    if (argc == 5 && strcmp(argv[3], "create") != 0 && strcmp(argv[3], "remove")!= 0) {
-        print_usage();
-        return -1;
-    }
-
     char *register_pipe_name = argv[1];
     char *pipe_name = argv[2];
     char *mode = argv[3];
     char *box_name = argv[4];
+
+    if ((argc != 4 && argc != 5) || (argc == 4 && strcmp(mode, "list") != 0) ||
+        (argc == 5 && strcmp(mode, "create") != 0 && strcmp(mode, "remove")!= 0))
+    {
+        print_usage();
+        return -1;
+    }
 
     // make pipe
     unlink(pipe_name);
@@ -100,10 +95,18 @@ int main(int argc, char **argv) {
     fcli = open(pipe_name, O_RDONLY);
     if (fcli < 0) return -1;
 
-    char op_code[1];
-    ssize_t ret = read(fcli, op_code, 1);
+    char code[3];
+    ssize_t ret = read(fcli, &code, 3);
     if (ret < 0) return -1;
-    response_handler(op_code);
+    
+    // ISTO NAO TA A PRINTAR NS PQ.             /// ATENCAO ///
+    puts(code);
+
+    // Does not include list boxes option
+    if (strcmp(code, "0") != 0)
+        response_handler(code);
+    else 
+        puts("BOXES LISTED SUCCESSFULLY");
     close(fcli);
 
     return 0;

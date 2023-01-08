@@ -1,6 +1,6 @@
 #include "../utils/logging.h"
 #include "../utils/fifo.h"
-#include "../utils/request_control.h"
+#include "../utils/requests.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -31,7 +31,6 @@ int main(int argc, char **argv) {
     if (fcli < 0) return -1;
 
     // read response from mbroker
-    // char buffer[BUFFER_SIZE];
     char code[3];
     ssize_t ret = read(fcli, &code, 3);
     if (ret < 0) return -1;

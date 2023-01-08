@@ -1,6 +1,6 @@
 #include "../utils/logging.h"
 #include "../utils/fifo.h"
-#include "../utils/request_control.h"
+#include "../utils/requests.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
