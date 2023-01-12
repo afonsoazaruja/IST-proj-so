@@ -65,17 +65,23 @@ void read_pipe_and_box_name(char pipe_name[], char box_name[]) {
 
 void request_handler(char *op_code) {
     ssize_t ret;
+    char buffer[BUFFER_SIZE];
     char pipe_name[256];
     char box_name[32];
 
     switch((uint8_t)op_code[0]) {
         case 1: // create publisher
             read_pipe_and_box_name(pipe_name, box_name);
-            puts(pipe_name);
-            puts("SUCCESS: Publisher connected");
             fcli = open(pipe_name, O_WRONLY);
             ret = write(fcli, "0", 2);
             if (ret < 0) exit(EXIT_FAILURE);
+            close(fcli);
+            fcli = open(pipe_name, O_RDONLY);
+            while(true) {
+                ret = read(fcli, buffer, BUFFER_SIZE);
+                fprintf(stdout, "%s\n", buffer);
+                if (ret <= 0) break;
+            }
             close(fcli);
             break;
 
@@ -133,7 +139,6 @@ int main(int argc, char **argv) {
     char *register_pipe_name = argv[1];
 
     // /make register_pipe_name
-    unlink(register_pipe_name);
     makefifo(register_pipe_name);
 
     // open register pipe

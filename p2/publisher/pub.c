@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdint.h>
 
 #define BUFFER_SIZE 1024
 
@@ -21,7 +22,6 @@ int main(int argc, char **argv) {
     char *box_name = argv[3];
     
     // make pipe_name
-    unlink(pipe_name);
     makefifo(pipe_name);
 
    if (send_request(1, register_pipe_name, pipe_name, box_name) == -1) return -1;
@@ -32,21 +32,23 @@ int main(int argc, char **argv) {
 
     // read response from mbroker
     char code[3];
-    ssize_t ret = read(fcli, &code, 3);
+    ssize_t ret = read(fcli, code, 3);
     if (ret < 0) return -1;
-        
-    if (strcmp(code, "0") == 0) {
-        puts("SUCCESS: publisher created\n");
-    }
-    else if (strcmp(code, "-1") == 0){
-        fprintf(stderr, "ERROR: cannot create publisher\n");
-        return -1;        
-    }
-    
-    // close pipe to open it in O_WRONLY because it is a publisher
     close(fcli);
-    fcli = open(pipe_name, O_WRONLY);
-    fprintf(stdout, "SUCCESS\n");
+    // if publisher couldn't be created
+    if (strcmp(code, "-1") == 0) {
+        puts("ola\n");
+        return -1;
+    }
+    else {
+        fcli = open(pipe_name, O_WRONLY);
+    }
+    char buffer[BUFFER_SIZE];
+    // publisher sends messages
+    while(fgets(buffer, BUFFER_SIZE, stdin) != NULL) {
+        ret = write(fcli, buffer, BUFFER_SIZE);
+        if (ret < 0) exit(EXIT_FAILURE);
+    }
 
     //close(fserv);
     //if (fcli < 0) return -1;

@@ -22,7 +22,6 @@ int main(int argc, char **argv) {
     char *box_name = argv[3];
 
     // make pipe_name
-    unlink(pipe_name);
     makefifo(pipe_name);
     
     if (send_request(2, register_pipe_name, pipe_name, box_name) == -1) return -1;
