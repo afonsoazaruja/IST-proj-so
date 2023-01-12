@@ -115,6 +115,7 @@ int response_handler(char *op_code) {
                     bytes_to_uint64(box_size), 
                     bytes_to_uint64(n_pub), 
                     bytes_to_uint64(n_sub)); 
+    puts("CLOSED");
             }
             break; 
 
@@ -155,7 +156,6 @@ int main(int argc, char **argv) {
     ssize_t ret = read(fcli, op_code, 1);
     if (ret < 0) return -1;
 
-    puts("CLOSED");
     response_handler(op_code);
     close(fcli);
 

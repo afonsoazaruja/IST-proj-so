@@ -158,7 +158,7 @@ int main(int argc, char **argv) {
     while(true) {
         ssize_t ret = read(fserv, op_code, 1);
         if (ret < 0) break;
-        else if (ret == 0) request_handler(op_code);
+        else if (ret > 0) request_handler(op_code);
     }
     close(fserv);
     close(fcli);
