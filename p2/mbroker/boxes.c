@@ -7,7 +7,7 @@
 
 char err_msg[ERR_SIZE];
 box **system_boxes;
-unsigned long num_of_boxes = 0;
+long num_of_boxes = 0;
 
 void destroy_system_boxes() {
     for (int i = 0; i < num_of_boxes; i++) {
@@ -18,10 +18,10 @@ void destroy_system_boxes() {
     system_boxes = NULL;
 }
 
-unsigned long find_box(char *box_name) {
-    unsigned long index = 0;
+long find_box(char *box_name) {
+    long index = -1;
 
-    for (unsigned long i = 0; i < num_of_boxes; i++) {
+    for (long i = 0; i < num_of_boxes; i++) {
         if (strcmp(system_boxes[i]->box_name, box_name) == 0) {
             index = i;
             break;
@@ -46,9 +46,9 @@ int remove_box(char *box_name) {
         return -1;
     }
 
-    unsigned long index_of_box = find_box(box_name);
+    long index_of_box = find_box(box_name);
     // Remove the box from the system_boxes array
-    for (unsigned long i = index_of_box; i < num_of_boxes - 1; i++) {
+    for (long i = index_of_box; i < num_of_boxes - 1; i++) {
         system_boxes[i] = system_boxes[i+1];
     }
     num_of_boxes--;
@@ -63,8 +63,8 @@ int comparator(const void *b1, const void *b2) {
 void resize_system_boxes(box *new_box) {
     box **new_system_boxes;
 
-    new_system_boxes = malloc(sizeof(box*) * (num_of_boxes + 1));
-    memcpy(new_system_boxes, system_boxes, sizeof(box*) * num_of_boxes);
+    new_system_boxes = malloc(sizeof(box*) * ((unsigned long)num_of_boxes + 1));
+    memcpy(new_system_boxes, system_boxes, sizeof(box*) * (unsigned long)num_of_boxes);
     new_system_boxes[num_of_boxes++] = new_box;
 
     free(system_boxes);
@@ -72,13 +72,9 @@ void resize_system_boxes(box *new_box) {
 }
 
 int create_box(char *box_name) {
-    int value = is_box_registered(box_name);
+    long value = find_box(box_name);
     memset(err_msg, 0, ERR_SIZE-1);
-    if (value < 0) {
-        memcpy(err_msg, "ERROR: Failed search", 21);
-        return -1;
-    }
-    if (value == 1) {
+    if (value >= 0) {
         memcpy(err_msg, "ERROR: Box already exists", 26);
         return -1;
     }

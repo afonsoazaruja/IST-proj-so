@@ -44,11 +44,17 @@ int comparator(const void *b1, const void *b2) {
     return strcmp(b1_name, b2_name);
 }
 
-// void bytes_to_uint64(char *value, int index) {
-//     for (int i = 0; i < 8; i++) {
-//         bytes[index + i] = (char) ((value >> (56 - (i * 8))) & 0xFF);   
-//     }
-// }
+uint64_t bytes_to_uint64(char *value) {
+    uint64_t num = (uint64_t)value[0] << 56 |
+                   (uint64_t)value[1] << 48 |
+                   (uint64_t)value[2] << 40 |
+                   (uint64_t)value[3] << 32 |
+                   (uint64_t)value[4] << 24 |
+                   (uint64_t)value[5] << 16 |
+                   (uint64_t)value[6] << 8 |
+                   (uint64_t)value[7];
+    return num;
+}
 
 int response_handler(char *op_code) {
     ssize_t ret;
@@ -99,15 +105,21 @@ int response_handler(char *op_code) {
              // sort boxes lexicographically
             qsort(boxes, sizeof(boxes), BUFFER_SIZE, comparator);
 
-            // for (int j = 0; j < i; j++) {
-            //     char box_name[32];
-            //     uint64_t box_size;
-            //     uint64_t n_publishers;
-            //     uint64_t n_subscribers;
+            for (int j = 0; j < i; j++) {
+                char box_name[32];
+                char box_size[8];
+                char n_pub[8];
+                char n_sub[8];
+                memcpy(box_name, buffer+2, 32);
+                memcpy(box_size, buffer+34, 8);
+                memcpy(n_pub, buffer+42, 8);
+                memcpy(n_sub, buffer+50, 8);
 
-            //     fprintf(stdout, "%s %zu %zu %zu\n", 
-            // }
-
+                fprintf(stdout, "%s %zu %zu %zu\n", box_name, 
+                    bytes_to_uint64(box_size), 
+                    bytes_to_uint64(n_pub), 
+                    bytes_to_uint64(n_sub)); 
+            }
             break;
 
         default:
@@ -146,14 +158,17 @@ int main(int argc, char **argv) {
     if (fcli < 0) return -1;
 
     char code[3];
-    ssize_t ret = read(fcli, &code, 3);
+    ssize_t ret = read(fcli, code, 1);
     if (ret < 0) return -1;
+
     
     // Does not include list boxes option
-    if (strcmp(code, "0") != 0)
+    if (strcmp(code, "0") == 0)
+        fprintf(stdout, "NO BOXES FOUND\n");
+    else {
         response_handler(code);
-    else 
         puts("BOXES LISTED SUCCESSFULLY");
+    }
     close(fcli);
 
     return 0;

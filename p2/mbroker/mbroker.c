@@ -80,6 +80,7 @@ void request_handler(char *op_code) {
             break;
 
         case 2: // create subscriber
+            
             read_pipe_and_box_name(pipe_name, box_name);
             puts("SUCCESS: Subscriber connected");
             break;
@@ -102,9 +103,14 @@ void request_handler(char *op_code) {
         
         case 7: // list boxes
             read_pipe_name(pipe_name);
+            fcli = open(pipe_name, O_WRONLY);
+            if (num_of_boxes == 0) {
+                ret = write(fcli, "0", 2);
+                if (ret < 0) exit(EXIT_FAILURE);
+                break;
+            }
             send_response(8, 0);
             puts("SUCCESS: Boxes listed");
-            fcli = open(pipe_name, O_WRONLY);
             ret = write(fcli, "0", 2);
             if (ret < 0) exit(EXIT_FAILURE);
             close(fcli);

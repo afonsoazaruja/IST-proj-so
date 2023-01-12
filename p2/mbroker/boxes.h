@@ -25,10 +25,10 @@ typedef struct {
 
 extern char err_msg[ERR_SIZE];
 extern box **system_boxes;
-extern unsigned long num_of_boxes;
+extern long num_of_boxes;
 
 void destroy_system_boxes();
-unsigned long find_box(char *box_name);
+long find_box(char *box_name);
 int remove_box(char *box_name);
 int comparator(const void *b1, const void *b2);
 void resize_system_boxes(box *new_box);
