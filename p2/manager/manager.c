@@ -1,6 +1,7 @@
 #include "../utils/logging.h"
 #include "../utils/requests.h"
 #include "../utils/fifo.h"
+#include "../utils/fifo.h"
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
@@ -27,13 +28,13 @@ static void print_usage() {
                     "   manager <register_pipe_name> <pipe_name> list\n");
 }
 
-void list_boxes() {
-    for (int i = 0; i < num_of_boxes; i++) {
-        fprintf(stdout, "%s %zu %zu %zu\n", system_boxes[i]->box_name,
-        system_boxes[i]->box_size, system_boxes[i]->n_publishers, 
-        system_boxes[i]->n_subscribers);
-    }
-}
+// void list_boxes() {
+//     for (int i = 0; i < num_of_boxes; i++) {
+//         fprintf(stdout, "%s %zu %zu %zu\n", system_boxes[i]->box_name,
+//         system_boxes[i]->box_size, system_boxes[i]->n_publishers, 
+//         system_boxes[i]->n_subscribers);
+//     }
+// }
 
 int response_handler(char *op_code) {
     ssize_t ret;
