@@ -19,8 +19,7 @@ int send_request(uint8_t code, char *register_pipe_name, char *pipe_name, char *
     memcpy(buffer+1+256, box_name, strlen(box_name));
 
     // open pipe to send request to mbroker
-    int fserv = open(register_pipe_name, O_WRONLY);
-    if (fserv < 0) return -1;
+    int fserv = open_pipe(register_pipe_name, O_WRONLY);
     
     // send request to mbroker
     ssize_t ret = write(fserv, buffer, sizeof(buffer));
@@ -38,8 +37,7 @@ int send_request_to_list_boxes(int code, char *register_pipe_name, char *pipe_na
     memcpy(buffer+1, pipe_name, strlen(pipe_name));
 
     // open pipe to send request to mbroker
-    int fserv = open(register_pipe_name, O_WRONLY);
-    if (fserv < 0) return -1;
+    int fserv = open_pipe(register_pipe_name, O_WRONLY);
     
     // send request to mbroker
     ssize_t ret = write(fserv, buffer, sizeof(buffer));

@@ -22,15 +22,21 @@ void uint64_to_bytes(uint64_t value, char bytes[], int index) {
     }
 }
 
-void send_response(uint8_t op_code, int ret_code) {
+void int32_to_bytes(int32_t value, char bytes[], int index) {
+    for (int i = 0; i < 4; i++) {
+        bytes[index + i] = (char) ((value >> (24 - (i * 8))) & 0xFF);   
+    }
+}
+
+void send_response(uint8_t op_code, int32_t ret_code) {
     char buffer[BUFFER_SIZE];
     switch(op_code) {
         case 4: // create box response
         case 6: // remove box response
             memset(buffer, 0, BUFFER_SIZE);
             buffer[0] = (char) op_code;
-            buffer[1] = (char) ret_code;
-            memcpy(buffer+2, err_msg, strlen(err_msg));
+            int32_to_bytes(ret_code, buffer, 1);
+            memcpy(buffer+5, err_msg, strlen(err_msg));
             ssize_t ret = write(fcli, buffer, BUFFER_SIZE);
             if (ret < 0) exit(EXIT_FAILURE);
             break;
@@ -68,15 +74,17 @@ void request_handler(char *op_code) {
     char buffer[BUFFER_SIZE];
     char pipe_name[256];
     char box_name[32];
-
+    memset(buffer, 0, BUFFER_SIZE);
+    memset(pipe_name, 0, 256);
+    memset(box_name, 0, 32);
     switch((uint8_t)op_code[0]) {
         case 1: // create publisher
             read_pipe_and_box_name(pipe_name, box_name);
-            fcli = open(pipe_name, O_WRONLY);
+            fcli = open_pipe(pipe_name, O_WRONLY);
             ret = write(fcli, "0", 2);
             if (ret < 0) exit(EXIT_FAILURE);
             close(fcli);
-            fcli = open(pipe_name, O_RDONLY);
+            fcli = open_pipe(pipe_name, O_RDONLY);
             while(true) {
                 ret = read(fcli, buffer, BUFFER_SIZE);
                 fprintf(stdout, "%s\n", buffer);
@@ -86,33 +94,34 @@ void request_handler(char *op_code) {
             break;
 
         case 2: // create subscriber
-            
             read_pipe_and_box_name(pipe_name, box_name);
-            puts("SUCCESS: Subscriber connected");
+            fcli = open_pipe(pipe_name, O_WRONLY);
+            ret = write(fcli, "0", 2);
+            if (ret < 0) exit(EXIT_FAILURE);
+            close(fcli);
             break;
     
         case 3: // create box
             read_pipe_and_box_name(pipe_name, box_name);
-            fcli = open(pipe_name, O_WRONLY);
+            fcli = open_pipe(pipe_name, O_WRONLY);
             send_response(4, create_box(box_name));
             close(fcli);
             break;
         
         case 5: // remove box
             read_pipe_and_box_name(pipe_name, box_name);
-            puts(pipe_name);
-            fcli = open(pipe_name, O_WRONLY);
-            // PQ EH QUE TAS A ENVIAR O OP_CODE A 6? PQ NAO 5?        /// ATENCAO ///
+            fcli = open_pipe(pipe_name, O_WRONLY);
             send_response(6, remove_box(box_name));
             close(fcli);
             break;
         
         case 7: // list boxes
             read_pipe_name(pipe_name);
-            fcli = open(pipe_name, O_WRONLY);
+            fcli = open_pipe(pipe_name, O_RDONLY);
             if (num_of_boxes == 0) {
-                ret = write(fcli, "0", 2);
+                ret = write(fcli, "-1", 3);
                 if (ret < 0) exit(EXIT_FAILURE);
+                close(fcli);
                 break;
             }
             send_response(8, 0);
@@ -142,8 +151,7 @@ int main(int argc, char **argv) {
     makefifo(register_pipe_name);
 
     // open register pipe
-    fserv = open(register_pipe_name, O_RDONLY);
-    if (fserv < 0) return -1;
+    fserv = open_pipe(register_pipe_name, O_RDONLY);
 
     char op_code[1];
     // keep reading op_codes from clients

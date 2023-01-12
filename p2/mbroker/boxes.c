@@ -30,7 +30,7 @@ long find_box(char *box_name) {
     return index;
 }
 
-int remove_box(char *box_name) {
+int32_t remove_box(char *box_name) {
     int value = is_box_registered(box_name);
     memset(err_msg, 0, ERR_SIZE-1);
     if (value < 0) {
@@ -71,7 +71,7 @@ void resize_system_boxes(box *new_box) {
     system_boxes = new_system_boxes;
 }
 
-int create_box(char *box_name) {
+int32_t create_box(char *box_name) {
     long value = find_box(box_name);
     memset(err_msg, 0, ERR_SIZE-1);
     if (value >= 0) {

@@ -27,16 +27,15 @@ int main(int argc, char **argv) {
     if (send_request(2, register_pipe_name, pipe_name, box_name) == -1) return -1;
 
     // open pipe to receive response from mbroker
-    int fcli = open(pipe_name, O_RDONLY);
-    if (fcli < 0) return -1;
+    int fcli = open_pipe(pipe_name, O_RDONLY);
 
     // read response from mbroker
-    char buffer[BUFFER_SIZE];
-    ssize_t ret = read(fcli, buffer, BUFFER_SIZE-1);
+    char buffer[3];
+    ssize_t ret = read(fcli, buffer, 3);
     if (ret < 0) return -1;
 
     close(fcli);
-    if (strncmp(buffer, "-1", 1) == 0) {
+    if (strcmp(buffer, "-1") == 0) {
         return -1;
     }
     else {

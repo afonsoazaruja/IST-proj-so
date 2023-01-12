@@ -51,43 +51,40 @@ uint64_t bytes_to_uint64(char *value) {
                    (uint64_t)value[3] << 32 |
                    (uint64_t)value[4] << 24 |
                    (uint64_t)value[5] << 16 |
-                   (uint64_t)value[6] << 8 |
+                   (uint64_t)value[6] << 8  |
                    (uint64_t)value[7];
     return num;
 }
 
+int32_t bytes_to_int32(char *value) {
+    int32_t num = (uint64_t)value[0] << 24 |
+                  (uint64_t)value[1] << 16 |
+                  (uint64_t)value[2] << 8  |
+                  (uint64_t)value[3];
+    return num;
+}
+
+
 int response_handler(char *op_code) {
     ssize_t ret;
-    char r_code[1];
+    char ret_code[4];
     char err_msg[ERR_SIZE];
     char buffer[BUFFER_SIZE];
     char boxes[64][BUFFER_SIZE];
-    int i = 0;   
+    int i = 0;
 
     switch((uint8_t)op_code[0]) { 
         case 4:
-            // read return code
-            ret = read(fcli, r_code, 1);
-            if (ret < 0) exit(EXIT_FAILURE);
-            // if box wasn't created or removed
-            if ((int32_t)r_code[0] < 0) { 
-                ret = read(fcli, err_msg, ERR_SIZE-1);
-                if (ret < 0) exit(EXIT_FAILURE);
-                puts(err_msg);
-            }
-            else {
-                puts("SUCCESS: Box created");
-            }
-            break;
         case 6:
             // read return code
-            ret = read(fcli, r_code, 1);
+            ret = read(fcli, ret_code, 4);
             if (ret < 0) exit(EXIT_FAILURE);
+
             // if box wasn't created or removed
-            if ((int32_t)r_code[0] < 0) { 
-                ret = read(fcli, err_msg, ERR_SIZE-1);
+            if (bytes_to_int32(ret_code) < 0) { 
+                ret = read(fcli, err_msg, ERR_SIZE);
                 if (ret < 0) exit(EXIT_FAILURE);
-                puts(err_msg);
+                fprintf(stderr, "ERROR %s\n", err_msg);
             }
             else {
                 puts("SUCCESS: Box removed");
@@ -143,7 +140,6 @@ int main(int argc, char **argv) {
     }
 
     // make pipe
-    unlink(pipe_name);
     makefifo(pipe_name);
     
     if (strcmp(mode, "create") == 0) {
@@ -154,21 +150,13 @@ int main(int argc, char **argv) {
         if (send_request_to_list_boxes(7, register_pipe_name, pipe_name) == -1) return -1;
     }
 
-    fcli = open(pipe_name, O_RDONLY);
-    if (fcli < 0) return -1;
+    fcli = open_pipe(pipe_name, O_RDONLY);
 
-    char code[3];
-    ssize_t ret = read(fcli, code, 1);
+    char op_code[1];
+    ssize_t ret = read(fcli, op_code, 1);
     if (ret < 0) return -1;
 
-    
-    // Does not include list boxes option
-    if (strcmp(code, "0") == 0)
-        fprintf(stdout, "NO BOXES FOUND\n");
-    else {
-        response_handler(code);
-        puts("BOXES LISTED SUCCESSFULLY");
-    }
+    response_handler(op_code);
     close(fcli);
 
     return 0;

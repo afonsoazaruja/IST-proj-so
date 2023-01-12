@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "config.h": "c",
-        "logging.h": "c"
+        "logging.h": "c",
+        "fifo.h": "c"
     }
 }

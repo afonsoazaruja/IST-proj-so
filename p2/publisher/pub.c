@@ -24,11 +24,10 @@ int main(int argc, char **argv) {
     // make pipe_name
     makefifo(pipe_name);
 
-   if (send_request(1, register_pipe_name, pipe_name, box_name) == -1) return -1;
+    if (send_request(1, register_pipe_name, pipe_name, box_name) == -1) return -1;
 
     // open pipe to receive response from mbroker
-    int fcli = open(pipe_name, O_RDONLY);
-    if (fcli < 0) return -1;
+    int fcli = open_pipe(pipe_name, O_RDONLY);
 
     // read response from mbroker
     char code[3];
@@ -37,11 +36,10 @@ int main(int argc, char **argv) {
     close(fcli);
     // if publisher couldn't be created
     if (strcmp(code, "-1") == 0) {
-        puts("ola\n");
         return -1;
     }
     else {
-        fcli = open(pipe_name, O_WRONLY);
+        fcli = open_pipe(pipe_name, O_WRONLY);
     }
     char buffer[BUFFER_SIZE];
     // publisher sends messages
@@ -49,27 +47,6 @@ int main(int argc, char **argv) {
         ret = write(fcli, buffer, BUFFER_SIZE);
         if (ret < 0) exit(EXIT_FAILURE);
     }
-
-    //close(fserv);
-    //if (fcli < 0) return -1;
-/*
-    ssize_t ret;
-    while(fgets(buffer, BUFFER_SIZE, stdin) != NULL) {
-        ret = write(tx, buffer, BUFFER_SIZE - 1);
-
-        if (ret == -1) {
-            fprintf(stderr, "Error.");
-            return -1;
-        }
-
-        ack_ret = read(ack_rx, &ack, 1);
-        if (ack_ret < 0) {
-           fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
-            exit(EXIT_FAILURE);
-        }
-    }
-    close(ack_rx);
-    close(tx);
-*/
+    close(fcli);
     return 0;
 }
