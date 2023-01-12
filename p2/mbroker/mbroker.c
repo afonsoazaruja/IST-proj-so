@@ -17,14 +17,9 @@
 int fcli, fserv;
 
 void uint64_to_bytes(uint64_t value, char bytes[], int index) {
-    bytes[index] = (char)((value >> 56) & 0xFF);
-    bytes[index + 1] = (char) ((value >> 48) & 0xFF);
-    bytes[index + 2] = (char) ((value >> 40) & 0xFF);
-    bytes[index + 3] = (char) ((value >> 32) & 0xFF);
-    bytes[index + 4] = (char) ((value >> 24) & 0xFF);
-    bytes[index + 5] = (char) ((value >> 16) & 0xFF);
-    bytes[index + 6] = (char) ((value >> 8) & 0xFF);
-    bytes[index + 7] = (char) (value & 0xFF);
+    for (int i = 0; i < 8; i++) {
+        bytes[index + i] = (char) ((value >> (56 - (i * 8))) & 0xFF);   
+    }
 }
 
 void send_response(uint8_t op_code, int ret_code) {
@@ -48,7 +43,7 @@ void send_response(uint8_t op_code, int ret_code) {
                 uint64_to_bytes(system_boxes[i]->box_size, buffer, 34); 
                 uint64_to_bytes(system_boxes[i]->n_publishers, buffer, 42); 
                 uint64_to_bytes(system_boxes[i]->n_subscribers, buffer, 50); 
-                // ssize_t ret = write(); 
+                ret = write(fcli, buffer, BUFFER_SIZE);
             }
             break;
         default: break;

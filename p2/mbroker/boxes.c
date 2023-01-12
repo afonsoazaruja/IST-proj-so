@@ -94,8 +94,7 @@ int create_box(char *box_name) {
     // Resize the system_boxes array and add new_box
     resize_system_boxes(new_box);
 
-    // sort boxes lexicographically
-    qsort(system_boxes, num_of_boxes, sizeof(box), comparator);
+   
     return 0;
 }
 

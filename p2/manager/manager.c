@@ -1,7 +1,6 @@
 #include "../utils/logging.h"
 #include "../utils/requests.h"
 #include "../utils/fifo.h"
-#include "../utils/fifo.h"
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
@@ -36,10 +35,28 @@ static void print_usage() {
 //     }
 // }
 
+int comparator(const void *b1, const void *b2) {
+    char b1_name[32];
+    char b2_name[32];
+
+    memcpy(b1_name, (char*) (b1) + 2, 32);
+    memcpy(b2_name, (char*) (b2) + 2, 32);
+    return strcmp(b1_name, b2_name);
+}
+
+// void bytes_to_uint64(char *value, int index) {
+//     for (int i = 0; i < 8; i++) {
+//         bytes[index + i] = (char) ((value >> (56 - (i * 8))) & 0xFF);   
+//     }
+// }
+
 int response_handler(char *op_code) {
     ssize_t ret;
     char r_code[1];
     char err_msg[ERR_SIZE];
+    char buffer[BUFFER_SIZE];
+    char boxes[64][BUFFER_SIZE];
+    int i = 0;   
 
     switch((uint8_t)op_code[0]) { 
         case 4:
@@ -70,8 +87,29 @@ int response_handler(char *op_code) {
                 puts("SUCCESS: Box removed");
             }
             break;
-        case 8:
+        case 8:      
+            while (true) {
+                memset(buffer, 0, BUFFER_SIZE);
+                ret = read(fcli, buffer, BUFFER_SIZE);
+                uint8_t last = (uint8_t) buffer[1];
+                memcpy(boxes[i], buffer, BUFFER_SIZE);    
+                i++;
+                if (last == 1) break;
+            }
+             // sort boxes lexicographically
+            qsort(boxes, sizeof(boxes), BUFFER_SIZE, comparator);
+
+            // for (int j = 0; j < i; j++) {
+            //     char box_name[32];
+            //     uint64_t box_size;
+            //     uint64_t n_publishers;
+            //     uint64_t n_subscribers;
+
+            //     fprintf(stdout, "%s %zu %zu %zu\n", 
+            // }
+
             break;
+
         default:
             break;
     }
@@ -111,9 +149,6 @@ int main(int argc, char **argv) {
     ssize_t ret = read(fcli, &code, 3);
     if (ret < 0) return -1;
     
-    // ISTO NAO TA A PRINTAR NS PQ.             /// ATENCAO ///
-    puts(code);
-
     // Does not include list boxes option
     if (strcmp(code, "0") != 0)
         response_handler(code);
