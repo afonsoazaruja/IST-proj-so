@@ -15,19 +15,138 @@
 #define BUFFER_SIZE 1200
 
 int fcli, fserv;
+char err_msg[ERR_SIZE];
+box **system_boxes;
+unsigned long num_of_boxes = 0;
 
-void send_response(int op_code, int r_code, char *buffer) {
+void destroy_system_boxes() {
+    for (int i = 0; i < num_of_boxes; i++) {
+        free(system_boxes[i]);
+        system_boxes[i] = NULL;
+    }
+    free(system_boxes);
+    system_boxes = NULL;
+}
+
+unsigned long find_box(char *box_name) {
+    unsigned long index = 0;
+
+    for (unsigned long i = 0; i < num_of_boxes; i++) {
+        if (strcmp(system_boxes[i]->box_name, box_name) == 0) {
+            index = i;
+            break;
+        }
+    }
+    return index;
+}
+
+int remove_box(char *box_name) {
+    int value = is_box_registered(box_name);
+    memset(err_msg, 0, ERR_SIZE-1);
+    if (value < 0) {
+        memcpy(err_msg, "ERROR: Failed search", 21);
+        return -1;
+    }
+    if (value == 0) {
+        memcpy(err_msg, "NO BOXES FOUND", 14);
+        return -1;
+    }
+    if (tfs_unlink(box_name) == -1) {
+        memcpy(err_msg, "ERROR: Couldn't remove box", 27);
+        return -1;
+    }
+
+    unsigned long index_of_box = find_box(box_name);
+    // Remove the box from the system_boxes array
+    for (unsigned long i = index_of_box; i < num_of_boxes - 1; i++) {
+        system_boxes[i] = system_boxes[i+1];
+    }
+    num_of_boxes--;
+
+    return 0;
+}
+
+int comparator(const void *b1, const void *b2) {
+    return strcmp(((box*) b1)->box_name, ((box*) b2)->box_name);
+}
+
+void resize_system_boxes(box *new_box) {
+    box **new_system_boxes;
+
+    new_system_boxes = malloc(sizeof(box*) * (num_of_boxes + 1));
+    memcpy(new_system_boxes, system_boxes, sizeof(box*) * num_of_boxes);
+    new_system_boxes[num_of_boxes++] = new_box;
+
+    free(system_boxes);
+    system_boxes = new_system_boxes;
+}
+
+int create_box(char *box_name) {
+    int value = is_box_registered(box_name);
+    memset(err_msg, 0, ERR_SIZE-1);
+    if (value < 0) {
+        memcpy(err_msg, "ERROR: Failed search", 21);
+        return -1;
+    }
+    if (value == 1) {
+        memcpy(err_msg, "ERROR: Box already exists", 26);
+        return -1;
+    }
+    int fhandle = tfs_open(box_name, TFS_O_CREAT);
+    if (fhandle == -1) return -1;
+
+    box *new_box = malloc(sizeof(box));
+    memcpy(new_box->box_name, box_name, strlen(box_name));
+    new_box->n_publishers = 0;
+    new_box->n_subscribers = 0;
+    new_box->box_size = 0;
+    new_box->last = 0;
+
+    // Resize the system_boxes array and add new_box
+    resize_system_boxes(new_box);
+
+    // sort boxes lexicographically
+    qsort(system_boxes, num_of_boxes, sizeof(box), comparator);
+
+    system_boxes[num_of_boxes-1]->last = 1;
+    if (num_of_boxes > 1) system_boxes[num_of_boxes-2]->last = 0;
+    return 0;
+}
+
+void uint64_to_bytes(uint64_t value, char bytes[], int index) {
+    bytes[index] = (char)((value >> 56) & 0xFF);
+    bytes[index + 1] = (char) ((value >> 48) & 0xFF);
+    bytes[index + 2] = (char) ((value >> 40) & 0xFF);
+    bytes[index + 3] = (char) ((value >> 32) & 0xFF);
+    bytes[index + 4] = (char) ((value >> 24) & 0xFF);
+    bytes[index + 5] = (char) ((value >> 16) & 0xFF);
+    bytes[index + 6] = (char) ((value >> 8) & 0xFF);
+    bytes[index + 7] = (char) (value & 0xFF);
+}
+
+void send_response(uint8_t op_code, int ret_code) {
+    char buffer[BUFFER_SIZE];
     switch(op_code) {
         case 4: // create box response
         case 6: // remove box response
-            memset(buffer, 0, BUFFER_SIZE-1);
-            buffer[0] = (char)op_code;
-            buffer[1] = (char)r_code;    
+            memset(buffer, 0, BUFFER_SIZE);
+            buffer[0] = (char) op_code;
+            buffer[1] = (char) ret_code;
             memcpy(buffer+2, err_msg, strlen(err_msg));
-            ssize_t ret = write(fcli, buffer, BUFFER_SIZE-1);
+            ssize_t ret = write(fcli, buffer, BUFFER_SIZE);
             if (ret < 0) exit(EXIT_FAILURE);
             break;
         case 8: // list boxes
+            for (int i = 0; i < num_of_boxes; i++) {
+                memset(buffer, 0, BUFFER_SIZE);
+                buffer[0] = op_code;
+                buffer[1] = system_boxes[i]->last;
+                memcpy(buffer + 2, system_boxes[i]->box_name, 32);
+                uint64_to_bytes(system_boxes[i]->box_size, buffer, 34); 
+                uint64_to_bytes(system_boxes[i]->n_publishers, buffer, 42); 
+                uint64_to_bytes(system_boxes[i]->n_subscribers, buffer, 50); 
+                // ssize_t ret = write(); 
+            }
             break;
         default: break;
     }
@@ -48,13 +167,13 @@ void read_pipe_and_box_name(char pipe_name[], char box_name[]) {
 
 void request_handler(char *op_code) {
     ssize_t ret;
-    char buffer[BUFFER_SIZE];
     char pipe_name[256];
     char box_name[32];
 
     switch((uint8_t)op_code[0]) {
         case 1: // create publisher
             read_pipe_and_box_name(pipe_name, box_name);
+            puts(pipe_name);
             puts("SUCCESS: Publisher connected");
             fcli = open(pipe_name, O_WRONLY);
             ret = write(fcli, "0", 2);
@@ -66,11 +185,11 @@ void request_handler(char *op_code) {
             read_pipe_and_box_name(pipe_name, box_name);
             puts("SUCCESS: Subscriber connected");
             break;
-        
+    
         case 3: // create box
             read_pipe_and_box_name(pipe_name, box_name);
             fcli = open(pipe_name, O_WRONLY);
-            send_response(4, create_box(box_name), buffer);
+            send_response(4, create_box(box_name));
             close(fcli);
             break;
         
@@ -79,13 +198,13 @@ void request_handler(char *op_code) {
             puts(pipe_name);
             fcli = open(pipe_name, O_WRONLY);
             // PQ EH QUE TAS A ENVIAR O OP_CODE A 6? PQ NAO 5?        /// ATENCAO ///
-            send_response(6, remove_box(box_name), buffer);
+            send_response(6, remove_box(box_name));
             close(fcli);
             break;
         
         case 7: // list boxes
             read_pipe_name(pipe_name);
-            list_boxes();
+            send_response(8, 0);
             puts("SUCCESS: Boxes listed");
             fcli = open(pipe_name, O_WRONLY);
             ret = write(fcli, "0", 2);
@@ -117,11 +236,11 @@ int main(int argc, char **argv) {
     fserv = open(register_pipe_name, O_RDONLY);
     if (fserv < 0) return -1;
 
-    // keep reading op_codes from clients
     char op_code[1];
+    // keep reading op_codes from clients
     while(true) {
         ssize_t ret = read(fserv, op_code, 1);
-        if (ret <= 0) break;
+        if (ret < 0) break;
         request_handler(op_code);
     }
     close(fserv);

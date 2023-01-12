@@ -1,5 +1,6 @@
 #include "../utils/logging.h"
 #include "../utils/fifo.h"
+#include <stdint.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -9,7 +10,7 @@
 
 #define BUFFER_SIZE 1024
 
-int send_request(int code, char *register_pipe_name, char *pipe_name, char *box_name)  {
+int send_request(uint8_t code, char *register_pipe_name, char *pipe_name, char *box_name)  {
     // build request
     char buffer[BUFFER_SIZE];
     memset(buffer, 0, BUFFER_SIZE-1);

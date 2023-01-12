@@ -27,17 +27,26 @@ static void print_usage() {
                     "   manager <register_pipe_name> <pipe_name> list\n");
 }
 
+void list_boxes() {
+    for (int i = 0; i < num_of_boxes; i++) {
+        fprintf(stdout, "%s %zu %zu %zu\n", system_boxes[i]->box_name,
+        system_boxes[i]->box_size, system_boxes[i]->n_publishers, 
+        system_boxes[i]->n_subscribers);
+    }
+}
+
 int response_handler(char *op_code) {
     ssize_t ret;
     char r_code[1];
     char err_msg[ERR_SIZE];
 
-    switch((uint8_t)op_code[0]) { // TODO CONVERSAO DO RETURN CODE ESTA MAL POR ISSO DA SEMPRE SUCCESS
+    switch((uint8_t)op_code[0]) { 
         case 4:
             // read return code
             ret = read(fcli, r_code, 1);
             if (ret < 0) exit(EXIT_FAILURE);
-            if ((int32_t)r_code[0] < 0) { // if box wasn't created or removed
+            // if box wasn't created or removed
+            if ((int32_t)r_code[0] < 0) { 
                 ret = read(fcli, err_msg, ERR_SIZE-1);
                 if (ret < 0) exit(EXIT_FAILURE);
                 puts(err_msg);
@@ -50,7 +59,8 @@ int response_handler(char *op_code) {
             // read return code
             ret = read(fcli, r_code, 1);
             if (ret < 0) exit(EXIT_FAILURE);
-            if ((int32_t)r_code[0] < 0) { // if box wasn't created or removed
+            // if box wasn't created or removed
+            if ((int32_t)r_code[0] < 0) { 
                 ret = read(fcli, err_msg, ERR_SIZE-1);
                 if (ret < 0) exit(EXIT_FAILURE);
                 puts(err_msg);
@@ -66,6 +76,7 @@ int response_handler(char *op_code) {
     }
     return 0;
 }
+
 
 int main(int argc, char **argv) {
     char *register_pipe_name = argv[1];
