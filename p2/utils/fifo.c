@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
 
@@ -18,10 +19,24 @@ void makefifo(const char *path) {
 }
 
 int open_pipe(const char *path, int flag) {
-    int pipe = open(path, flag);
-    if (pipe < 0) {
+    int pipe_fd = open(path, flag);
+    if (pipe_fd < 0) {
         fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
-    return pipe;
+    return pipe_fd;
 }
+
+ssize_t safe_read(int fd, void *buf, size_t _nbytes) {
+    ssize_t ret = read(fd, buf, _nbytes);
+    if (ret < 0) exit(EXIT_FAILURE);
+
+    return ret;
+}
+
+ssize_t safe_write(int fd, void *buf, size_t _nbytes) {
+    ssize_t ret = read(fd, buf, _nbytes);
+    if (ret < 0) exit(EXIT_FAILURE);
+
+    return ret;
+} 

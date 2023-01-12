@@ -45,13 +45,13 @@ int comparator(const void *b1, const void *b2) {
 }
 
 uint64_t bytes_to_uint64(char *value) {
-    uint64_t num = (uint64_t)value[0] << 56 |
+    uint64_t num = (uint64_t)value[0] << 56|
                    (uint64_t)value[1] << 48 |
                    (uint64_t)value[2] << 40 |
                    (uint64_t)value[3] << 32 |
                    (uint64_t)value[4] << 24 |
                    (uint64_t)value[5] << 16 |
-                   (uint64_t)value[6] << 8  |
+                   (uint64_t)value[6] << 8  | 
                    (uint64_t)value[7];
     return num;
 }
@@ -74,9 +74,8 @@ int response_handler(char *op_code) {
     int i = 0;
 
     switch((uint8_t)op_code[0]) { 
-        case 4:
-        case 6:
-            // read return code
+        case 4: // response for create box
+        case 6: // response for remove box
             ret = read(fcli, ret_code, 4);
             if (ret < 0) exit(EXIT_FAILURE);
 
@@ -84,19 +83,19 @@ int response_handler(char *op_code) {
             if (bytes_to_int32(ret_code) < 0) { 
                 ret = read(fcli, err_msg, ERR_SIZE);
                 if (ret < 0) exit(EXIT_FAILURE);
-                fprintf(stderr, "ERROR %s\n", err_msg);
             }
             else {
-                puts("SUCCESS: Box removed");
+                fprintf(stdout, "OK\n");
             }
             break;
-        case 8:      
+        case 8:  
             while (true) {
                 memset(buffer, 0, BUFFER_SIZE);
                 ret = read(fcli, buffer, BUFFER_SIZE);
-                uint8_t last = (uint8_t) buffer[1];
+                uint8_t last = (uint8_t) buffer[0];
                 memcpy(boxes[i], buffer, BUFFER_SIZE);    
                 i++;
+                fprintf(stdout, "%u\n", last);
                 if (last == 1) break;
             }
              // sort boxes lexicographically
@@ -107,17 +106,17 @@ int response_handler(char *op_code) {
                 char box_size[8];
                 char n_pub[8];
                 char n_sub[8];
-                memcpy(box_name, buffer+2, 32);
-                memcpy(box_size, buffer+34, 8);
-                memcpy(n_pub, buffer+42, 8);
-                memcpy(n_sub, buffer+50, 8);
+                memcpy(box_name, buffer+1, 32);
+                memcpy(box_size, buffer+33, 8);
+                memcpy(n_pub, buffer+41, 8);
+                memcpy(n_sub, buffer+49, 8);
 
                 fprintf(stdout, "%s %zu %zu %zu\n", box_name, 
                     bytes_to_uint64(box_size), 
                     bytes_to_uint64(n_pub), 
                     bytes_to_uint64(n_sub)); 
             }
-            break;
+            break; 
 
         default:
             break;
@@ -156,6 +155,7 @@ int main(int argc, char **argv) {
     ssize_t ret = read(fcli, op_code, 1);
     if (ret < 0) return -1;
 
+    puts("CLOSED");
     response_handler(op_code);
     close(fcli);
 

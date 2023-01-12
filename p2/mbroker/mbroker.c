@@ -44,14 +44,21 @@ void send_response(uint8_t op_code, int32_t ret_code) {
             for (int i = 0; i < num_of_boxes; i++) {
                 memset(buffer, 0, BUFFER_SIZE);
                 buffer[0] = (char) op_code;
-                buffer[1] = (char) system_boxes[i]->last;
-                memcpy(buffer + 2, system_boxes[i]->box_name, 32);
-                uint64_to_bytes(system_boxes[i]->box_size, buffer, 34); 
-                uint64_to_bytes(system_boxes[i]->n_publishers, buffer, 42); 
-                uint64_to_bytes(system_boxes[i]->n_subscribers, buffer, 50); 
-                ret = write(fcli, buffer, BUFFER_SIZE);
+                if (num_of_boxes > 0) {
+                    buffer[1] = (char) system_boxes[i]->last;
+                    memcpy(buffer + 2, system_boxes[i]->box_name, 32);
+                    uint64_to_bytes(system_boxes[i]->box_size, buffer, 34); 
+                    uint64_to_bytes(system_boxes[i]->n_publishers, buffer, 42); 
+                    uint64_to_bytes(system_boxes[i]->n_subscribers, buffer, 50); 
+                    ret = write(fcli, buffer, BUFFER_SIZE);
+                    if (ret < 0) exit(EXIT_FAILURE);
+                } else {
+                    buffer[1] = 1;
+                    ret = write(fcli, buffer, BUFFER_SIZE);
+                }  
             }
             break;
+
         default: break;
     }
 }
@@ -77,6 +84,7 @@ void request_handler(char *op_code) {
     memset(buffer, 0, BUFFER_SIZE);
     memset(pipe_name, 0, 256);
     memset(box_name, 0, 32);
+
     switch((uint8_t)op_code[0]) {
         case 1: // create publisher
             read_pipe_and_box_name(pipe_name, box_name);
@@ -115,19 +123,11 @@ void request_handler(char *op_code) {
             close(fcli);
             break;
         
-        case 7: // list boxes
+        case 7: // list     
             read_pipe_name(pipe_name);
-            fcli = open_pipe(pipe_name, O_RDONLY);
-            if (num_of_boxes == 0) {
-                ret = write(fcli, "-1", 3);
-                if (ret < 0) exit(EXIT_FAILURE);
-                close(fcli);
-                break;
-            }
+            fcli = open_pipe(pipe_name, O_WRONLY);
             send_response(8, 0);
             puts("SUCCESS: Boxes listed");
-            ret = write(fcli, "0", 2);
-            if (ret < 0) exit(EXIT_FAILURE);
             close(fcli);
             break;
             
@@ -158,7 +158,7 @@ int main(int argc, char **argv) {
     while(true) {
         ssize_t ret = read(fserv, op_code, 1);
         if (ret < 0) break;
-        request_handler(op_code);
+        else if (ret == 0) request_handler(op_code);
     }
     close(fserv);
     close(fcli);
