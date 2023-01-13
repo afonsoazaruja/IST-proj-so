@@ -32,8 +32,9 @@ int main(int argc, char **argv) {
     // read response from mbroker
     char code[3];
     ssize_t ret = write(fcli, code, 3);
-    if (ret <= 0) return -1;
     // if publisher couldn't be created
+    if (ret <= 0) return -1;
+
     char buffer[BUFFER_SIZE];
     // publisher sends messages
     while(fgets(buffer, BUFFER_SIZE, stdin) != NULL) {

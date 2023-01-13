@@ -81,8 +81,9 @@ int32_t create_box(char *box_name) {
         return -1;
     }
     int fhandle = tfs_open(box_name, TFS_O_CREAT);
-    if (fhandle == -1) return -1;
-
+    if (fhandle == -1)  return -1;
+    close(fhandle);
+    
     box *new_box = malloc(sizeof(box));
     memcpy(new_box->box_name, box_name, strlen(box_name));
     new_box->n_publishers = 0;
@@ -93,6 +94,7 @@ int32_t create_box(char *box_name) {
     // Resize the system_boxes array and add new_box
     resize_system_boxes(new_box);
     list_boxes();
+
 
    
     return 0;

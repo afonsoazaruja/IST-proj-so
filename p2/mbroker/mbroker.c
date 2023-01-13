@@ -85,30 +85,51 @@ void request_handler(char *op_code) {
     memset(buffer, 0, BUFFER_SIZE);
     memset(pipe_name, 0, 256);
     memset(box_name, 0, 32);
+    long index;
 
     switch((uint8_t)op_code[0]) {
         case 1: // create publisher
             read_pipe_and_box_name(pipe_name, box_name);
             fcli = open_pipe(pipe_name, O_RDONLY);
-            if (find_box(box_name) == -1) {
+            index = find_box(box_name);
+            if (index == -1 || system_boxes[index]->n_publishers == 1) {
                 close(fcli);
                 break;
             }
+            system_boxes[index]->n_publishers = 1;
+            int fd = tfs_open(box_name, TFS_O_APPEND);
+            if (fd == -1) exit(EXIT_FAILURE);
+            system_boxes[index]->fd = fd;
+
             while(true) {
                 ret = read(fcli, buffer, BUFFER_SIZE);
                 if (ret <= 0) break;
-                
+
+                puts(buffer);
+
+                size_t len = strlen(buffer);
+                printf("A len eh %zu\n", len);
+                system_boxes[index]->box_size += len;
+
+                buffer[len -1] = '\0';
+
+                ret = tfs_write(fd, buffer, len);
+                if (ret == -1) exit(EXIT_FAILURE);
             }
+            system_boxes[index]->n_publishers = 0;
             close(fcli);
             break;
 
         case 2: // create subscriber
             read_pipe_and_box_name(pipe_name, box_name);
             fcli = open_pipe(pipe_name, O_WRONLY);
-            if (find_box(box_name) == -1) {
+            index = find_box(box_name);
+            if (index == -1) {
                 close(fcli);
                 break;
             }
+            system_boxes[index]->n_subscribers++;
+
             // tem que ficar a ler a box
             close(fcli);
             break;
