@@ -96,8 +96,8 @@ void request_handler(char *op_code) {
             }
             while(true) {
                 ret = read(fcli, buffer, BUFFER_SIZE);
-                fprintf(stdout, "%s", buffer);
                 if (ret <= 0) break;
+                
             }
             close(fcli);
             break;

@@ -93,12 +93,11 @@ int response_handler(char *op_code) {
                 memset(buffer, 0, BUFFER_SIZE);
                 ret = read(fcli, buffer, BUFFER_SIZE);
                 uint8_t last = (uint8_t) buffer[0];
-                fprintf(stdout, "%d\n", last);
-                i++;
                 memcpy(boxes[i], buffer, BUFFER_SIZE);
+                i++;
                 if (last == 1) break;
             }
-             // sort boxes lexicographically
+            // sort boxes lexicographically
             qsort(boxes, i, BUFFER_SIZE, comparator);
 
             for (int j = 0; j < i; j++) {
