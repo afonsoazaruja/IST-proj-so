@@ -67,6 +67,8 @@ void resize_system_boxes(box *new_box) {
     memcpy(new_system_boxes, system_boxes, sizeof(box*) * (unsigned long)num_of_boxes);
     new_system_boxes[num_of_boxes++] = new_box;
 
+    if (num_of_boxes > 1) system_boxes[num_of_boxes-2]->last = 0;
+
     free(system_boxes);
     system_boxes = new_system_boxes;
 }
@@ -86,6 +88,7 @@ int32_t create_box(char *box_name) {
     new_box->n_publishers = 0;
     new_box->n_subscribers = 0;
     new_box->box_size = 0;
+    new_box->last = 1;
 
     // Resize the system_boxes array and add new_box
     resize_system_boxes(new_box);

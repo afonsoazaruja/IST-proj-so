@@ -70,8 +70,8 @@ int response_handler(char *op_code) {
     char ret_code[4];
     char err_msg[ERR_SIZE];
     char buffer[BUFFER_SIZE];
-    char boxes[64][BUFFER_SIZE];
-    int i = 0;
+    char boxes[64][BUFFER_SIZE] = {0};
+    unsigned long i = 0;
 
     switch((uint8_t)op_code[0]) { 
         case 4: // response for create box
@@ -93,28 +93,28 @@ int response_handler(char *op_code) {
                 memset(buffer, 0, BUFFER_SIZE);
                 ret = read(fcli, buffer, BUFFER_SIZE);
                 uint8_t last = (uint8_t) buffer[0];
-                memcpy(boxes[i], buffer, BUFFER_SIZE);    
+                fprintf(stdout, "%d\n", last);
                 i++;
+                memcpy(boxes[i], buffer, BUFFER_SIZE);
                 if (last == 1) break;
             }
              // sort boxes lexicographically
-            qsort(boxes, sizeof(boxes), BUFFER_SIZE, comparator);
+            qsort(boxes, i, BUFFER_SIZE, comparator);
 
             for (int j = 0; j < i; j++) {
                 char box_name[32];
                 char box_size[8];
                 char n_pub[8];
                 char n_sub[8];
-                memcpy(box_name, buffer+1, 32);
-                memcpy(box_size, buffer+33, 8);
-                memcpy(n_pub, buffer+41, 8);
-                memcpy(n_sub, buffer+49, 8);
+                memcpy(box_name, boxes[j]+1, 32);
+                memcpy(box_size, boxes[j]+33, 8);
+                memcpy(n_pub, boxes[j]+41, 8);
+                memcpy(n_sub, boxes[j]+49, 8);
 
                 fprintf(stdout, "%s %zu %zu %zu\n", box_name, 
                     bytes_to_uint64(box_size), 
                     bytes_to_uint64(n_pub), 
                     bytes_to_uint64(n_sub)); 
-    puts("CLOSED");
             }
             break; 
 

@@ -30,6 +30,7 @@ void int32_to_bytes(int32_t value, char bytes[], int index) {
 
 void send_response(uint8_t op_code, int32_t ret_code) {
     char buffer[BUFFER_SIZE];
+    memset(buffer, 0, BUFFER_SIZE);
     switch(op_code) {
         case 4: // create box response
         case 6: // remove box response
@@ -41,22 +42,21 @@ void send_response(uint8_t op_code, int32_t ret_code) {
             if (ret < 0) exit(EXIT_FAILURE);
             break;
         case 8: // list boxes
+            if (num_of_boxes == 0) {
+                buffer[1] = 1;
+                ret = write(fcli, buffer, BUFFER_SIZE);
+                break;
+            }
             for (int i = 0; i < num_of_boxes; i++) {
                 memset(buffer, 0, BUFFER_SIZE);
                 buffer[0] = (char) op_code;
-                if (num_of_boxes > 0) {
-                    buffer[1] = (char) system_boxes[i]->last;
-                    memcpy(buffer + 2, system_boxes[i]->box_name, 32);
-                    uint64_to_bytes(system_boxes[i]->box_size, buffer, 34); 
-                    uint64_to_bytes(system_boxes[i]->n_publishers, buffer, 42); 
-                    uint64_to_bytes(system_boxes[i]->n_subscribers, buffer, 50); 
-                    printf("%s\n",buffer);
-                    ret = write(fcli, buffer, BUFFER_SIZE);
-                    if (ret < 0) exit(EXIT_FAILURE);
-                } else {
-                    buffer[1] = 1;
-                    ret = write(fcli, buffer, BUFFER_SIZE);
-                }  
+                buffer[1] = (char) system_boxes[i]->last;
+                memcpy(buffer+2, system_boxes[i]->box_name, 32);
+                uint64_to_bytes(system_boxes[i]->box_size, buffer, 34); 
+                uint64_to_bytes(system_boxes[i]->n_publishers, buffer, 42); 
+                uint64_to_bytes(system_boxes[i]->n_subscribers, buffer, 50); 
+                ret = write(fcli, buffer, BUFFER_SIZE);
+                if (ret < 0) exit(EXIT_FAILURE);
             }
             break;
 
