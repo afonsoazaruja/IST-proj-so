@@ -8,7 +8,7 @@
 #include <fcntl.h>
 
 void makefifo(const char *path) {
-    if (unlink(path) == -1) {
+    if (unlink(path) != 0 && errno != ENOENT) {
         fprintf(stderr, "[ERR]: unlink failed: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
