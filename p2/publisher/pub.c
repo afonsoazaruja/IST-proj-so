@@ -27,20 +27,13 @@ int main(int argc, char **argv) {
     if (send_request(1, register_pipe_name, pipe_name, box_name) == -1) return -1;
 
     // open pipe to receive response from mbroker
-    int fcli = open_pipe(pipe_name, O_RDONLY);
+    int fcli = open_pipe(pipe_name, O_WRONLY);
 
     // read response from mbroker
     char code[3];
-    ssize_t ret = read(fcli, code, 3);
-    if (ret < 0) return -1;
-    close(fcli);
+    ssize_t ret = write(fcli, code, 3);
+    if (ret <= 0) return -1;
     // if publisher couldn't be created
-    if (strcmp(code, "-1") == 0) {
-        return -1;
-    }
-    else {
-        fcli = open_pipe(pipe_name, O_WRONLY);
-    }
     char buffer[BUFFER_SIZE];
     // publisher sends messages
     while(fgets(buffer, BUFFER_SIZE, stdin) != NULL) {

@@ -89,6 +89,7 @@ int32_t create_box(char *box_name) {
 
     // Resize the system_boxes array and add new_box
     resize_system_boxes(new_box);
+    list_boxes();
 
    
     return 0;

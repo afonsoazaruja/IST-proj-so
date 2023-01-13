@@ -95,7 +95,6 @@ int response_handler(char *op_code) {
                 uint8_t last = (uint8_t) buffer[0];
                 memcpy(boxes[i], buffer, BUFFER_SIZE);    
                 i++;
-                fprintf(stdout, "%u\n", last);
                 if (last == 1) break;
             }
              // sort boxes lexicographically

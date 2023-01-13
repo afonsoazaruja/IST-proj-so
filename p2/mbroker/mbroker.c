@@ -50,6 +50,7 @@ void send_response(uint8_t op_code, int32_t ret_code) {
                     uint64_to_bytes(system_boxes[i]->box_size, buffer, 34); 
                     uint64_to_bytes(system_boxes[i]->n_publishers, buffer, 42); 
                     uint64_to_bytes(system_boxes[i]->n_subscribers, buffer, 50); 
+                    printf("%s\n",buffer);
                     ret = write(fcli, buffer, BUFFER_SIZE);
                     if (ret < 0) exit(EXIT_FAILURE);
                 } else {
@@ -88,14 +89,14 @@ void request_handler(char *op_code) {
     switch((uint8_t)op_code[0]) {
         case 1: // create publisher
             read_pipe_and_box_name(pipe_name, box_name);
-            fcli = open_pipe(pipe_name, O_WRONLY);
-            ret = write(fcli, "0", 2);
-            if (ret < 0) exit(EXIT_FAILURE);
-            close(fcli);
             fcli = open_pipe(pipe_name, O_RDONLY);
+            if (find_box(box_name) == -1) {
+                close(fcli);
+                break;
+            }
             while(true) {
                 ret = read(fcli, buffer, BUFFER_SIZE);
-                fprintf(stdout, "%s\n", buffer);
+                fprintf(stdout, "%s", buffer);
                 if (ret <= 0) break;
             }
             close(fcli);
@@ -104,8 +105,11 @@ void request_handler(char *op_code) {
         case 2: // create subscriber
             read_pipe_and_box_name(pipe_name, box_name);
             fcli = open_pipe(pipe_name, O_WRONLY);
-            ret = write(fcli, "0", 2);
-            if (ret < 0) exit(EXIT_FAILURE);
+            if (find_box(box_name) == -1) {
+                close(fcli);
+                break;
+            }
+            // tem que ficar a ler a box
             close(fcli);
             break;
     
