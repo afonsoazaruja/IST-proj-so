@@ -38,13 +38,12 @@ void send_response(uint8_t op_code, int32_t ret_code) {
             buffer[0] = (char) op_code;
             int32_to_bytes(ret_code, buffer, 1);
             memcpy(buffer+5, err_msg, strlen(err_msg));
-            ssize_t ret = write(fcli, buffer, BUFFER_SIZE);
-            if (ret < 0) exit(EXIT_FAILURE);
+            ssize_t ret = safe_write(fcli, buffer, BUFFER_SIZE);
             break;
         case 8: // list boxes
             if (num_of_boxes == 0) {
                 buffer[1] = 1;
-                ret = write(fcli, buffer, BUFFER_SIZE);
+                ret = safe_write(fcli, buffer, BUFFER_SIZE);
                 break;
             }
             for (int i = 0; i < num_of_boxes; i++) {
@@ -55,8 +54,7 @@ void send_response(uint8_t op_code, int32_t ret_code) {
                 uint64_to_bytes(system_boxes[i]->box_size, buffer, 34); 
                 uint64_to_bytes(system_boxes[i]->n_publishers, buffer, 42); 
                 uint64_to_bytes(system_boxes[i]->n_subscribers, buffer, 50); 
-                ret = write(fcli, buffer, BUFFER_SIZE);
-                if (ret < 0) exit(EXIT_FAILURE);
+                ret = safe_write(fcli, buffer, BUFFER_SIZE);
             }
             break;
 
@@ -65,12 +63,10 @@ void send_response(uint8_t op_code, int32_t ret_code) {
 }
 
 void read_pipe_name(char pipe_name[]) {
-    ssize_t ret = read(fserv, pipe_name, 256);
-    if (ret < 0) exit(EXIT_FAILURE);
+    ssize_t ret = safe_read(fserv, pipe_name, 256);
 }
 void read_box_name(char box_name[]) {
-    ssize_t ret = read(fserv, box_name, 32);
-    if (ret < 0) exit(EXIT_FAILURE);
+    ssize_t ret = safe_read(fserv, box_name, 32);
 }
 void read_pipe_and_box_name(char pipe_name[], char box_name[]) {
     read_pipe_name(pipe_name);
@@ -181,9 +177,8 @@ int main(int argc, char **argv) {
     char op_code[1];
     // keep reading op_codes from clients
     while(true) {
-        ssize_t ret = read(fserv, op_code, 1);
-        if (ret < 0) break;
-        else if (ret > 0) request_handler(op_code);
+        ssize_t ret = safe_read(fserv, op_code, 1);
+        if (ret > 0) request_handler(op_code);
     }
     close(fserv);
     close(fcli);

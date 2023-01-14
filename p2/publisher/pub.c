@@ -38,8 +38,7 @@ int main(int argc, char **argv) {
     char buffer[BUFFER_SIZE];
     // publisher sends messages
     while(fgets(buffer, BUFFER_SIZE, stdin) != NULL) {
-        ret = write(fcli, buffer, BUFFER_SIZE);
-        if (ret < 0) exit(EXIT_FAILURE);
+        ret = safe_write(fcli, buffer, BUFFER_SIZE);
     }
     close(fcli);
     return 0;

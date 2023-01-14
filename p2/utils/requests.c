@@ -42,6 +42,7 @@ int send_request_to_list_boxes(int code, char *register_pipe_name, char *pipe_na
     // send request to mbroker
     ssize_t ret = write(fserv, buffer, sizeof(buffer));
     if (ret < 0) return -1;
+    
     close(fserv);
     return 0;
 }

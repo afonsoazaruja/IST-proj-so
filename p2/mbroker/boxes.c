@@ -75,11 +75,12 @@ void resize_system_boxes(box *new_box) {
 
 int32_t create_box(char *box_name) {
     long value = find_box(box_name);
-    memset(err_msg, 0, ERR_SIZE-1);
+    memset(err_msg, 0, ERR_SIZE-1); 
     if (value >= 0) {
         memcpy(err_msg, "ERROR: Box already exists", 26);
         return -1;
     }
+    
     int fhandle = tfs_open(box_name, TFS_O_CREAT);
     if (fhandle == -1)  return -1;
     close(fhandle);
@@ -95,8 +96,6 @@ int32_t create_box(char *box_name) {
     resize_system_boxes(new_box);
     list_boxes();
 
-
-   
     return 0;
 }
 

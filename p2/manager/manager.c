@@ -76,13 +76,11 @@ int response_handler(char *op_code) {
     switch((uint8_t)op_code[0]) { 
         case 4: // response for create box
         case 6: // response for remove box
-            ret = read(fcli, ret_code, 4);
-            if (ret < 0) exit(EXIT_FAILURE);
+            ret = safe_read(fcli, ret_code, 4);
 
             // if box wasn't created or removed
             if (bytes_to_int32(ret_code) < 0) { 
-                ret = read(fcli, err_msg, ERR_SIZE);
-                if (ret < 0) exit(EXIT_FAILURE);
+                ret = safe_read(fcli, err_msg, ERR_SIZE);
             }
             else {
                 fprintf(stdout, "OK\n");
@@ -91,7 +89,7 @@ int response_handler(char *op_code) {
         case 8:  
             while (true) {
                 memset(buffer, 0, BUFFER_SIZE);
-                ret = read(fcli, buffer, BUFFER_SIZE);
+                ret = safe_read(fcli, buffer, BUFFER_SIZE);
                 uint8_t last = (uint8_t) buffer[0];
                 memcpy(boxes[i], buffer, BUFFER_SIZE);
                 i++;
