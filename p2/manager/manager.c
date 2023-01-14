@@ -66,7 +66,6 @@ int32_t bytes_to_int32(char *value) {
 
 
 int response_handler(char *op_code) {
-    ssize_t ret;
     char ret_code[4];
     char err_msg[ERR_SIZE];
     char buffer[BUFFER_SIZE];
@@ -76,11 +75,11 @@ int response_handler(char *op_code) {
     switch((uint8_t)op_code[0]) { 
         case 4: // response for create box
         case 6: // response for remove box
-            ret = safe_read(fcli, ret_code, 4);
+            safe_read(fcli, ret_code, 4);
 
             // if box wasn't created or removed
             if (bytes_to_int32(ret_code) < 0) { 
-                ret = safe_read(fcli, err_msg, ERR_SIZE);
+                safe_read(fcli, err_msg, ERR_SIZE);
             }
             else {
                 fprintf(stdout, "OK\n");
@@ -89,7 +88,7 @@ int response_handler(char *op_code) {
         case 8:  
             while (true) {
                 memset(buffer, 0, BUFFER_SIZE);
-                ret = safe_read(fcli, buffer, BUFFER_SIZE);
+                safe_read(fcli, buffer, BUFFER_SIZE);
                 uint8_t last = (uint8_t) buffer[0];
                 memcpy(boxes[i], buffer, BUFFER_SIZE);
                 i++;
