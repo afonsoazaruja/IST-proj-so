@@ -87,7 +87,7 @@ void find_indexes_with_newline(char *vector, int newline_indexes[]) {
 void request_handler(char *op_code) {
     ssize_t ret;
     char buffer[BUFFER_SIZE];
-    char message[BUFFER_SIZE];
+    // char message[MESSAGE_SIZE];
     char pipe_name[256];
     char box_name[32];
 
@@ -110,20 +110,21 @@ void request_handler(char *op_code) {
             system_boxes[index]->n_publishers = 1;
             int fd = tfs_open(box_name, TFS_O_APPEND);
             if (fd == -1) exit(EXIT_FAILURE);
-
+            size_t len = 1;
             while(true) {
                 ret = read(fcli, buffer, MESSAGE_SIZE);
                 if (ret <= 0) break;
-                //if (buffer[0] != 9) exit(EXIT_FAILURE);
-                size_t len = strlen(buffer);
+                len = strlen(buffer);
                 system_boxes[index]->box_size += len;
-                buffer[len -1] = '\0';
+                buffer[len-1] = '\0';
                 puts(buffer);
 
                 ret = tfs_write(fd, buffer, len);
                 if (ret == -1) exit(EXIT_FAILURE);
                 memset(buffer, 0, BUFFER_SIZE);
             }
+            tfs_close(fd);
+            
             // if read returns 0, the pipe was close so the publisher disconnects
             system_boxes[index]->n_publishers = 0;
             close(fcli);
@@ -139,24 +140,19 @@ void request_handler(char *op_code) {
             }
             system_boxes[index]->n_subscribers++;
             fd = tfs_open(box_name, TFS_O_CREAT);
-            
-            ret = tfs_read(fd, buffer, system_boxes[index]->box_size);
-            puts(buffer);
-            if (ret == -1) exit(EXIT_FAILURE);
-            size_t len = strlen(buffer);
-            size_t i = 0;
-
-            while (i < len) {
-                size_t j = 0;
-                puts(buffer);
-                while (buffer[i] != '\0') {
-                    message[j++] = buffer[i++];
+            len = system_boxes[index]->box_size;
+            while(len > 0) {
+                ret = tfs_read(fd, buffer, 1);
+                while(buffer[0] != '\0') {
+                    fprintf(stdout, "%c",buffer[0]);
+                    len--;
+                    ret = tfs_read(fd, buffer, 1);
                 }
-                puts("SAIU");
-                message[j] = 0;
-                safe_write(fcli, message, j);
+                len--;
+                fprintf(stdout, "\n");
             }
-            puts("SAIU2");
+            tfs_close(fd);
+
             system_boxes[index]->n_subscribers--;
             close(fcli);
             break;
