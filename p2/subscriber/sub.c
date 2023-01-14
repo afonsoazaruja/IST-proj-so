@@ -36,8 +36,9 @@ int main(int argc, char **argv) {
     if (ret <= 0) return -1;
 
     while(true) {
-        safe_read(fcli, buffer, BUFFER_SIZE);
+        ret = safe_read(fcli, buffer, BUFFER_SIZE);
         fprintf(stdout, "%s\n", buffer);
+        if (ret == 0) break;
     }
 
     return 0;

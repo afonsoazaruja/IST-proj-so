@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -13,6 +14,7 @@
 #include <unistd.h>
 
 #define BUFFER_SIZE 1200
+#define MESSAGE_SIZE 1024
 
 int fcli, fserv;
 
@@ -73,11 +75,22 @@ void read_pipe_and_box_name(char pipe_name[], char box_name[]) {
     read_box_name(box_name);
 }
 
+void find_indexes_with_newline(char *vector, int newline_indexes[]) {
+    size_t vector_length = strlen(vector);
+    int index_count = 0;
+
+    for (int i = 0; i < vector_length; i++) {
+        if (vector[i] == '\n') newline_indexes[index_count++] = i;
+    }
+}
+
 void request_handler(char *op_code) {
     ssize_t ret;
     char buffer[BUFFER_SIZE];
+    char message[BUFFER_SIZE];
     char pipe_name[256];
     char box_name[32];
+
     memset(buffer, 0, BUFFER_SIZE);
     memset(pipe_name, 0, 256);
     memset(box_name, 0, 32);
@@ -92,27 +105,26 @@ void request_handler(char *op_code) {
                 close(fcli);
                 break;
             }
-            ret = read(fcli, buffer, BUFFER_SIZE);
+            ret = safe_read(fcli, buffer, BUFFER_SIZE);
             memset(buffer, 0, BUFFER_SIZE);
             system_boxes[index]->n_publishers = 1;
             int fd = tfs_open(box_name, TFS_O_APPEND);
             if (fd == -1) exit(EXIT_FAILURE);
-            system_boxes[index]->fd = fd;
 
             while(true) {
-                ret = read(fcli, buffer, 1024);
+                ret = read(fcli, buffer, MESSAGE_SIZE);
                 if (ret <= 0) break;
-                puts(buffer);
                 //if (buffer[0] != 9) exit(EXIT_FAILURE);
                 size_t len = strlen(buffer);
                 system_boxes[index]->box_size += len;
-
                 buffer[len -1] = '\0';
+                puts(buffer);
 
                 ret = tfs_write(fd, buffer, len);
                 if (ret == -1) exit(EXIT_FAILURE);
                 memset(buffer, 0, BUFFER_SIZE);
             }
+            // if read returns 0, the pipe was close so the publisher disconnects
             system_boxes[index]->n_publishers = 0;
             close(fcli);
             break;
@@ -126,17 +138,25 @@ void request_handler(char *op_code) {
                 break;
             }
             system_boxes[index]->n_subscribers++;
-            uint64_t len = system_boxes[index]->box_size;
             fd = tfs_open(box_name, TFS_O_CREAT);
-            int i = 0;
-            while(len > 0) {
-                tfs_read(fd, buffer+i, 1);
-                if (buffer[i++] == '\0') {
-                    safe_write(fcli, buffer, len);
-                    memset(buffer, 0, BUFFER_SIZE);
+            
+            ret = tfs_read(fd, buffer, system_boxes[index]->box_size);
+            puts(buffer);
+            if (ret == -1) exit(EXIT_FAILURE);
+            size_t len = strlen(buffer);
+            size_t i = 0;
+
+            while (i < len) {
+                size_t j = 0;
+                puts(buffer);
+                while (buffer[i] != '\0') {
+                    message[j++] = buffer[i++];
                 }
-                len--;
+                puts("SAIU");
+                message[j] = 0;
+                safe_write(fcli, message, j);
             }
+            puts("SAIU2");
             system_boxes[index]->n_subscribers--;
             close(fcli);
             break;

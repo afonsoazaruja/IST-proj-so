@@ -21,7 +21,6 @@ typedef struct {
     uint8_t last;
     uint64_t n_publishers;
     uint64_t n_subscribers;
-    int fd;
 } box;
 
 extern char err_msg[ERR_SIZE];
