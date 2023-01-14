@@ -100,14 +100,12 @@ void request_handler(char *op_code) {
             system_boxes[index]->fd = fd;
 
             while(true) {
-                ret = read(fcli, buffer, BUFFER_SIZE);
+                ret = read(fcli, buffer, 1024);
                 if (ret <= 0) break;
-                if (buffer[0] != 9) exit(EXIT_FAILURE);
                 puts(buffer);
-
+                //if (buffer[0] != 9) exit(EXIT_FAILURE);
                 size_t len = strlen(buffer);
-                printf("A len eh %zu", len);
-                system_boxes[index]->box_size += len-1;
+                system_boxes[index]->box_size += len;
 
                 buffer[len -1] = '\0';
 
@@ -128,8 +126,18 @@ void request_handler(char *op_code) {
                 break;
             }
             system_boxes[index]->n_subscribers++;
-
-            // tem que ficar a ler a box
+            uint64_t len = system_boxes[index]->box_size;
+            fd = tfs_open(box_name, TFS_O_CREAT);
+            int i = 0;
+            while(len > 0) {
+                tfs_read(fd, buffer+i, 1);
+                if (buffer[i++] == '\0') {
+                    safe_write(fcli, buffer, len);
+                    memset(buffer, 0, BUFFER_SIZE);
+                }
+                len--;
+            }
+            system_boxes[index]->n_subscribers--;
             close(fcli);
             break;
     
@@ -175,16 +183,16 @@ int main(int argc, char **argv) {
 
     // open register pipe
     fserv = open_pipe(register_pipe_name, O_RDONLY);
+    int fd = open_pipe(register_pipe_name, O_WRONLY);
 
     char op_code[1] = {0};
     // keep reading op_codes from clients
-    fcntl(fserv, F_SETFL, fcntl(fserv, F_GETFL) & ~O_NONBLOCK);
     while(true) {
         ssize_t ret = safe_read(fserv, op_code, 1);
-        // puts(op_code);
         if (ret > 0 && op_code[0] != 0) request_handler(op_code);
         memset(op_code, 0, 1);
     }
+    close(fd);
     close(fserv);
     close(fcli);
     return 0;

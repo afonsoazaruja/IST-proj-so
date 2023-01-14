@@ -30,7 +30,7 @@ int find_box(char *box_name) {
     return index;
 }
 
-int32_t remove_box(char *box_name) {
+int remove_box(char *box_name) {
     int value = find_box(box_name);
     memset(err_msg, 0, ERR_SIZE-1);
     if (value < 0) {
@@ -43,33 +43,23 @@ int32_t remove_box(char *box_name) {
     }
 
     int index_of_box = find_box(box_name);
+    box *temp = system_boxes[index_of_box];
     // Remove the box from the system_boxes array
     for (int i = index_of_box; i < num_of_boxes - 1; i++) {
         system_boxes[i] = system_boxes[i+1];
     }
+    free(temp);
     num_of_boxes--;
 
     return 0;
 }
 
-int comparator(const void *b1, const void *b2) {
-    return strcmp(((box*) b1)->box_name, ((box*) b2)->box_name);
-}
-
 void resize_system_boxes(box *new_box) {
-    box **new_system_boxes;
-
-    new_system_boxes = malloc(sizeof(box*) * ((unsigned int)num_of_boxes + 1));
-    memcpy(new_system_boxes, system_boxes, sizeof(box*) * (unsigned int)num_of_boxes);
-    new_system_boxes[num_of_boxes++] = new_box;
-
-    if (num_of_boxes > 1) system_boxes[num_of_boxes-2]->last = 0;
-
-    free(system_boxes);
-    system_boxes = new_system_boxes;
+    system_boxes = realloc(system_boxes, sizeof(box) * ((size_t) (num_of_boxes + 1)));
+    system_boxes[num_of_boxes++] = new_box;
 }
 
-int32_t create_box(char *box_name) {
+int create_box(char *box_name) {
     int value = find_box(box_name);
     memset(err_msg, 0, ERR_SIZE-1); 
     if (value >= 0) {
@@ -92,12 +82,4 @@ int32_t create_box(char *box_name) {
     resize_system_boxes(new_box);
 
     return 0;
-}
-
-void list_boxes() {
-    for (int i = 0; i < num_of_boxes; i++) {
-        fprintf(stdout, "%s %zu %zu %zu\n", system_boxes[i]->box_name,
-        system_boxes[i]->box_size, system_boxes[i]->n_publishers, 
-        system_boxes[i]->n_subscribers);
-    }
 }

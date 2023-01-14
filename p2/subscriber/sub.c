@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 #define BUFFER_SIZE 1024
 
@@ -30,16 +31,14 @@ int main(int argc, char **argv) {
     int fcli = open_pipe(pipe_name, O_RDONLY);
 
     // read response from mbroker
-    char buffer[3];
-    ssize_t ret = read(fcli, buffer, 3);
-    if (ret < 0) return -1;
+    char buffer[BUFFER_SIZE];
+    ssize_t ret = read(fcli, buffer, BUFFER_SIZE);
+    if (ret <= 0) return -1;
 
-    close(fcli);
-    if (strcmp(buffer, "-1") == 0) {
-        return -1;
+    while(true) {
+        safe_read(fcli, buffer, BUFFER_SIZE);
+        fprintf(stdout, "%s\n", buffer);
     }
-    else {
-        fprintf(stdout, "SUCCESS");
-    }
+
     return 0;
 }
