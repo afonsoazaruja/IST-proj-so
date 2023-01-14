@@ -327,27 +327,3 @@ int tfs_unlink(char const *target) {
 
     return 0;
 }
-
-int is_box_registered(char const *name) {
-    if (pthread_mutex_lock(&g_library_mutex) == -1) {
-        warn("failed to lock mutex: %s", strerror(errno));
-        return -1;
-    }
-
-    inode_t *root_dir_inode = inode_get(ROOT_DIR_INUM);
-    ALWAYS_ASSERT(root_dir_inode != NULL,
-                  "tfs_open: root dir inode must exist");
-    int inum = tfs_lookup(name, root_dir_inode);
-    if (inum == -1) {
-        if (pthread_mutex_unlock(&g_library_mutex) == -1) {
-            warn("failed to unlock mutex: %s", strerror(errno));
-            return -1;
-        }
-        return -1;
-    }
-    if (pthread_mutex_unlock(&g_library_mutex) == -1) {
-        warn("failed to unlock mutex: %s", strerror(errno));
-        return -1;
-    }
-    return inum >= 0;        
-}

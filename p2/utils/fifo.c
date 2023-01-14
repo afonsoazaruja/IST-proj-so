@@ -35,7 +35,7 @@ ssize_t safe_read(int fd, void *buf, size_t _nbytes) {
 }
 
 ssize_t safe_write(int fd, void *buf, size_t _nbytes) {
-    ssize_t ret = read(fd, buf, _nbytes);
+    ssize_t ret = write(fd, buf, _nbytes);
     if (ret < 0) exit(EXIT_FAILURE);
 
     return ret;

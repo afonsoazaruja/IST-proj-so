@@ -30,15 +30,17 @@ int main(int argc, char **argv) {
     int fcli = open_pipe(pipe_name, O_WRONLY);
 
     // read response from mbroker
-    char code[3];
-    ssize_t ret = write(fcli, code, 3);
+    ssize_t ret = write(fcli, "1", 2);
+    ret = write(fcli, "1", 2);
     // if publisher couldn't be created
     if (ret <= 0) return -1;
 
     char buffer[BUFFER_SIZE];
+    buffer[0] = (char) 9;
     // publisher sends messages
     while(fgets(buffer, BUFFER_SIZE, stdin) != NULL) {
         ret = safe_write(fcli, buffer, BUFFER_SIZE);
+        memset(buffer+1, 0, BUFFER_SIZE-1);
     }
     close(fcli);
     return 0;

@@ -80,6 +80,7 @@ int response_handler(char *op_code) {
             // if box wasn't created or removed
             if (bytes_to_int32(ret_code) < 0) { 
                 safe_read(fcli, err_msg, ERR_SIZE);
+                fprintf(stdout, "%s\n", err_msg);
             }
             else {
                 fprintf(stdout, "OK\n");

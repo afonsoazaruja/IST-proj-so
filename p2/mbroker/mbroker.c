@@ -92,6 +92,8 @@ void request_handler(char *op_code) {
                 close(fcli);
                 break;
             }
+            ret = read(fcli, buffer, BUFFER_SIZE);
+            memset(buffer, 0, BUFFER_SIZE);
             system_boxes[index]->n_publishers = 1;
             int fd = tfs_open(box_name, TFS_O_APPEND);
             if (fd == -1) exit(EXIT_FAILURE);
@@ -100,17 +102,18 @@ void request_handler(char *op_code) {
             while(true) {
                 ret = read(fcli, buffer, BUFFER_SIZE);
                 if (ret <= 0) break;
-
+                if (buffer[0] != 9) exit(EXIT_FAILURE);
                 puts(buffer);
 
                 size_t len = strlen(buffer);
-                printf("A len eh %zu\n", len);
-                system_boxes[index]->box_size += len;
+                printf("A len eh %zu", len);
+                system_boxes[index]->box_size += len-1;
 
                 buffer[len -1] = '\0';
 
                 ret = tfs_write(fd, buffer, len);
                 if (ret == -1) exit(EXIT_FAILURE);
+                memset(buffer, 0, BUFFER_SIZE);
             }
             system_boxes[index]->n_publishers = 0;
             close(fcli);
@@ -148,7 +151,6 @@ void request_handler(char *op_code) {
             read_pipe_name(pipe_name);
             fcli = open_pipe(pipe_name, O_WRONLY);
             send_response(8, 0);
-            puts("SUCCESS: Boxes listed");
             close(fcli);
             break;
             
@@ -174,11 +176,14 @@ int main(int argc, char **argv) {
     // open register pipe
     fserv = open_pipe(register_pipe_name, O_RDONLY);
 
-    char op_code[1];
+    char op_code[1] = {0};
     // keep reading op_codes from clients
+    fcntl(fserv, F_SETFL, fcntl(fserv, F_GETFL) & ~O_NONBLOCK);
     while(true) {
         ssize_t ret = safe_read(fserv, op_code, 1);
-        if (ret > 0) request_handler(op_code);
+        // puts(op_code);
+        if (ret > 0 && op_code[0] != 0) request_handler(op_code);
+        memset(op_code, 0, 1);
     }
     close(fserv);
     close(fcli);
