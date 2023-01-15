@@ -12,11 +12,14 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <pthread.h>
 
 #define BUFFER_SIZE 1200
 #define MESSAGE_SIZE 1024
 
 int fcli, fserv;
+pthread_mutex_t mutex_boxes[64];
+pthread_cond_t cond_boxes;
 
 void uint64_to_bytes(uint64_t value, char bytes[], int index) {
     for (int i = 0; i < 8; i++) {
@@ -152,6 +155,9 @@ void request_handler(char *op_code) {
                 fprintf(stdout, "\n");
             }
             tfs_close(fd);
+            while(true) {
+
+            }
 
             system_boxes[index]->n_subscribers--;
             close(fcli);
@@ -188,12 +194,27 @@ int main(int argc, char **argv) {
         fprintf(stderr, "usage: mbroker <register_pipe_name> <max_sessions>\n");
         return -1;
     }
-    if (tfs_init(NULL) == -1) {
+
+    char *register_pipe_name = argv[1];
+    size_t num_threads = (size_t) atoi(argv[2]);
+
+    tfs_params params = tfs_default_params();
+    params.max_open_files_count = num_threads;
+
+    if (tfs_init(&params) == -1) {
         return -1;
     }
 
-    char *register_pipe_name = argv[1];
+    if (pthread_mutex_init(mutex_boxes, NULL) != 0) {
+        perror("Failed to init Mutex");
+        exit(EXIT_FAILURE);
+    }
 
+    if (pthread_cond_init(&cond_boxes, NULL) != 0) {
+        perror("Failed to init Mutex");
+        exit(EXIT_FAILURE);
+    }
+    
     // /make register_pipe_name
     makefifo(register_pipe_name);
 
