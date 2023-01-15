@@ -80,13 +80,14 @@ int response_handler(char *op_code) {
             // if box wasn't created or removed
             if (bytes_to_int32(ret_code) < 0) { 
                 safe_read(fcli, err_msg, ERR_SIZE);
-                fprintf(stdout, "%s\n", err_msg);
+                fprintf(stdout, "ERROR %s\n", err_msg);
             }
             else {
                 fprintf(stdout, "OK\n");
             }
             break;
-        case 8:  
+        case 8:
+            // read all boxes
             while (true) {
                 memset(buffer, 0, BUFFER_SIZE);
                 safe_read(fcli, buffer, BUFFER_SIZE);
@@ -94,6 +95,11 @@ int response_handler(char *op_code) {
                 memcpy(boxes[i], buffer, BUFFER_SIZE);
                 i++;
                 if (last == 1) break;
+            }
+            // if there are no boxes box_name is filled with \0
+            if (i == 1 && buffer[1] == '\0') {
+                fprintf(stdout, "NO BOXES FOUND\n");
+                break;
             }
             // sort boxes lexicographically
             qsort(boxes, i, BUFFER_SIZE, comparator);

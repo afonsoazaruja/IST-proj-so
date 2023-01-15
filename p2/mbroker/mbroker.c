@@ -16,6 +16,7 @@
 
 #define BUFFER_SIZE 1200
 #define MESSAGE_SIZE 1024
+#define MAX_BOXES 64
 
 int fcli, fserv;
 pthread_mutex_t mutex_boxes[64];
@@ -36,11 +37,10 @@ void int32_to_bytes(int32_t value, char bytes[], int index) {
 void send_response(uint8_t op_code, int32_t ret_code) {
     char buffer[BUFFER_SIZE];
     memset(buffer, 0, BUFFER_SIZE);
+    buffer[0] = (char) op_code;
     switch(op_code) {
         case 4: // create box response
         case 6: // remove box response
-            memset(buffer, 0, BUFFER_SIZE);
-            buffer[0] = (char) op_code;
             int32_to_bytes(ret_code, buffer, 1);
             memcpy(buffer+5, err_msg, strlen(err_msg));
             safe_write(fcli, buffer, BUFFER_SIZE);
@@ -51,15 +51,19 @@ void send_response(uint8_t op_code, int32_t ret_code) {
                 safe_write(fcli, buffer, BUFFER_SIZE);
                 break;
             }
-            for (int i = 0; i < num_of_boxes; i++) {
-                memset(buffer, 0, BUFFER_SIZE);
-                buffer[0] = (char) op_code;
-                buffer[1] = (char) system_boxes[i]->last;
-                memcpy(buffer+2, system_boxes[i]->box_name, 32);
-                uint64_to_bytes(system_boxes[i]->box_size, buffer, 34); 
-                uint64_to_bytes(system_boxes[i]->n_publishers, buffer, 42); 
-                uint64_to_bytes(system_boxes[i]->n_subscribers, buffer, 50); 
-                safe_write(fcli, buffer, BUFFER_SIZE);
+            int n_boxes = num_of_boxes;
+            for (int i = 0; i < MAX_BOXES; i++) {
+                if (system_boxes[i].state == TAKEN) {
+                    memset(buffer, 0, BUFFER_SIZE);
+                    buffer[0] = (char) op_code;
+                    buffer[1] = (char) 0;
+                    if (--n_boxes == 0) buffer[1] = (char) 1;
+                    memcpy(buffer+2, system_boxes[i].box_name, 32);
+                    uint64_to_bytes(system_boxes[i].box_size, buffer, 34); 
+                    uint64_to_bytes(system_boxes[i].n_publishers, buffer, 42); 
+                    uint64_to_bytes(system_boxes[i].n_subscribers, buffer, 50); 
+                    safe_write(fcli, buffer, BUFFER_SIZE);
+                }
             }
             break;
 
@@ -104,13 +108,13 @@ void request_handler(char *op_code) {
             read_pipe_and_box_name(pipe_name, box_name);
             fcli = open_pipe(pipe_name, O_RDONLY);
             index = find_box(box_name);
-            if (index == -1 || system_boxes[index]->n_publishers == 1) {
+            if (index == -1 || system_boxes[index].n_publishers == 1) {
                 close(fcli);
                 break;
             }
             ret = safe_read(fcli, buffer, BUFFER_SIZE);
             memset(buffer, 0, BUFFER_SIZE);
-            system_boxes[index]->n_publishers = 1;
+            system_boxes[index].n_publishers = 1;
             int fd = tfs_open(box_name, TFS_O_APPEND);
             if (fd == -1) exit(EXIT_FAILURE);
             size_t len = 1;
@@ -118,18 +122,16 @@ void request_handler(char *op_code) {
                 ret = read(fcli, buffer, MESSAGE_SIZE);
                 if (ret <= 0) break;
                 len = strlen(buffer);
-                system_boxes[index]->box_size += len;
+                system_boxes[index].box_size += len;
                 buffer[len-1] = '\0';
-                puts(buffer);
 
                 ret = tfs_write(fd, buffer, len);
                 if (ret == -1) exit(EXIT_FAILURE);
                 memset(buffer, 0, BUFFER_SIZE);
             }
-            tfs_close(fd);
-            
             // if read returns 0, the pipe was close so the publisher disconnects
-            system_boxes[index]->n_publishers = 0;
+            tfs_close(fd);
+            system_boxes[index].n_publishers = 0;
             close(fcli);
             break;
 
@@ -141,9 +143,9 @@ void request_handler(char *op_code) {
                 close(fcli);
                 break;
             }
-            system_boxes[index]->n_subscribers++;
+            system_boxes[index].n_subscribers++;
             fd = tfs_open(box_name, TFS_O_CREAT);
-            len = system_boxes[index]->box_size;
+            len = system_boxes[index].box_size;
             while(len > 0) {
                 ret = tfs_read(fd, buffer, 1);
                 while(buffer[0] != '\0') {
@@ -159,7 +161,7 @@ void request_handler(char *op_code) {
 
             }
 
-            system_boxes[index]->n_subscribers--;
+            system_boxes[index].n_subscribers--;
             close(fcli);
             break;
     
@@ -177,7 +179,7 @@ void request_handler(char *op_code) {
             close(fcli);
             break;
         
-        case 7: // list     
+        case 7: // list
             read_pipe_name(pipe_name);
             fcli = open_pipe(pipe_name, O_WRONLY);
             send_response(8, 0);
@@ -200,20 +202,21 @@ int main(int argc, char **argv) {
 
     tfs_params params = tfs_default_params();
     params.max_open_files_count = num_threads;
-
+    params.max_inode_count = MAX_BOXES;
     if (tfs_init(&params) == -1) {
         return -1;
     }
+    init_boxes();
 
-    if (pthread_mutex_init(mutex_boxes, NULL) != 0) {
-        perror("Failed to init Mutex");
-        exit(EXIT_FAILURE);
-    }
+    // if (pthread_mutex_init(mutex_boxes, NULL) != 0) {
+    //     perror("Failed to init Mutex");
+    //     exit(EXIT_FAILURE);
+    // }
 
-    if (pthread_cond_init(&cond_boxes, NULL) != 0) {
-        perror("Failed to init Mutex");
-        exit(EXIT_FAILURE);
-    }
+    // if (pthread_cond_init(&cond_boxes, NULL) != 0) {
+    //     perror("Failed to init Mutex");
+    //     exit(EXIT_FAILURE);
+    // }
     
     // /make register_pipe_name
     makefifo(register_pipe_name);
