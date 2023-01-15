@@ -1,18 +1,5 @@
 #include "../utils/logging.h"
-#include "../fs/operations.h"
-#include "../utils/fifo.h"
 #include "boxes.h"
-#include <errno.h>
-#include <fcntl.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <pthread.h>
 
 #define BUFFER_SIZE 1200
 #define MESSAGE_SIZE 1024
@@ -53,15 +40,15 @@ void send_response(uint8_t op_code, int32_t ret_code) {
             }
             int n_boxes = num_of_boxes;
             for (int i = 0; i < MAX_BOXES; i++) {
-                if (system_boxes[i].state == TAKEN) {
+                if (system_boxes[i]->state == TAKEN) {
                     memset(buffer, 0, BUFFER_SIZE);
                     buffer[0] = (char) op_code;
                     buffer[1] = (char) 0;
                     if (--n_boxes == 0) buffer[1] = (char) 1;
-                    memcpy(buffer+2, system_boxes[i].box_name, 32);
-                    uint64_to_bytes(system_boxes[i].box_size, buffer, 34); 
-                    uint64_to_bytes(system_boxes[i].n_publishers, buffer, 42); 
-                    uint64_to_bytes(system_boxes[i].n_subscribers, buffer, 50); 
+                    memcpy(buffer+2, system_boxes[i]->box_name, 32);
+                    uint64_to_bytes(system_boxes[i]->box_size, buffer, 34); 
+                    uint64_to_bytes(system_boxes[i]->n_publishers, buffer, 42); 
+                    uint64_to_bytes(system_boxes[i]->n_subscribers, buffer, 50); 
                     safe_write(fcli, buffer, BUFFER_SIZE);
                 }
             }
@@ -82,15 +69,6 @@ void read_pipe_and_box_name(char pipe_name[], char box_name[]) {
     read_box_name(box_name);
 }
 
-void find_indexes_with_newline(char *vector, int newline_indexes[]) {
-    size_t vector_length = strlen(vector);
-    int index_count = 0;
-
-    for (int i = 0; i < vector_length; i++) {
-        if (vector[i] == '\n') newline_indexes[index_count++] = i;
-    }
-}
-
 void request_handler(char *op_code) {
     ssize_t ret;
     char buffer[BUFFER_SIZE];
@@ -108,13 +86,13 @@ void request_handler(char *op_code) {
             read_pipe_and_box_name(pipe_name, box_name);
             fcli = open_pipe(pipe_name, O_RDONLY);
             index = find_box(box_name);
-            if (index == -1 || system_boxes[index].n_publishers == 1) {
+            if (index == -1 || system_boxes[index]->n_publishers == 1) {
                 close(fcli);
                 break;
             }
             ret = safe_read(fcli, buffer, BUFFER_SIZE);
             memset(buffer, 0, BUFFER_SIZE);
-            system_boxes[index].n_publishers = 1;
+            system_boxes[index]->n_publishers = 1;
             int fd = tfs_open(box_name, TFS_O_APPEND);
             if (fd == -1) exit(EXIT_FAILURE);
             size_t len = 1;
@@ -122,7 +100,7 @@ void request_handler(char *op_code) {
                 ret = read(fcli, buffer, MESSAGE_SIZE);
                 if (ret <= 0) break;
                 len = strlen(buffer);
-                system_boxes[index].box_size += len;
+                system_boxes[index]->box_size += len;
                 buffer[len-1] = '\0';
 
                 ret = tfs_write(fd, buffer, len);
@@ -131,7 +109,7 @@ void request_handler(char *op_code) {
             }
             // if read returns 0, the pipe was close so the publisher disconnects
             tfs_close(fd);
-            system_boxes[index].n_publishers = 0;
+            system_boxes[index]->n_publishers = 0;
             close(fcli);
             break;
 
@@ -143,9 +121,9 @@ void request_handler(char *op_code) {
                 close(fcli);
                 break;
             }
-            system_boxes[index].n_subscribers++;
+            system_boxes[index]->n_subscribers++;
             fd = tfs_open(box_name, TFS_O_CREAT);
-            len = system_boxes[index].box_size;
+            len = system_boxes[index]->box_size;
             while(len > 0) {
                 ret = tfs_read(fd, buffer, 1);
                 while(buffer[0] != '\0') {
@@ -161,7 +139,7 @@ void request_handler(char *op_code) {
 
             }
 
-            system_boxes[index].n_subscribers--;
+            system_boxes[index]->n_subscribers--;
             close(fcli);
             break;
     

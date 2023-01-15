@@ -3,8 +3,7 @@
 
 #include "../utils/logging.h"
 #include "../fs/operations.h"
-#include "../utils/fifo.h"
-#include <errno.h>
+#include "../utils/pipes.h"
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -15,27 +14,26 @@
 
 #define ERR_SIZE 1024
 #define MAX_BOXES 64
-#define BOX_NAME 32
+#define BOX_NAME_SIZE 32
 
 typedef enum { FREE = 0, TAKEN = 1 } allocation_state_t;
 
 typedef struct {
     allocation_state_t state;
-    char box_name[BOX_NAME];
+    char box_name[BOX_NAME_SIZE];
     uint64_t box_size;
     uint64_t n_publishers;
     uint64_t n_subscribers;
 } box;
 
 extern char err_msg[ERR_SIZE];
-extern box system_boxes[MAX_BOXES];
+extern box **system_boxes;
 extern int num_of_boxes;
 
-// void destroy_system_boxes();
+void destroy_system_boxes();
 void init_boxes();
 int find_box(char *box_name);
 int remove_box(char *box_name);
-// void resize_system_boxes(box *new_box);
 int create_box(char *box_name);
 
 #endif

@@ -1,18 +1,11 @@
 #include "../utils/logging.h"
 #include "../utils/requests.h"
-#include "../utils/fifo.h"
+#include "../utils/pipes.h"
 #include <string.h>
-#include <assert.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
 #define BUFFER_SIZE 1200
@@ -96,7 +89,7 @@ int response_handler(char *op_code) {
                 i++;
                 if (last == 1) break;
             }
-            // if there are no boxes box_name is filled with \0
+            // if there are no boxes, box_name is filled with \0
             if (i == 1 && buffer[1] == '\0') {
                 fprintf(stdout, "NO BOXES FOUND\n");
                 break;

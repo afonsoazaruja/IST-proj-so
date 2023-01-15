@@ -1,5 +1,5 @@
 #include "../utils/logging.h"
-#include "../utils/fifo.h"
+#include "../utils/pipes.h"
 #include <stdint.h>
 #include <errno.h>
 #include <fcntl.h>
