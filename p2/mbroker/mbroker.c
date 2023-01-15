@@ -1,10 +1,12 @@
 #include "../utils/logging.h"
 #include "boxes.h"
 #include "../producer-consumer/producer-consumer.h"
+#include <pthread.h>
 
 #define BUFFER_SIZE 1200
 #define MESSAGE_SIZE 1024
 #define MAX_BOXES 64
+
 
 int fserv;
 pthread_mutex_t mutex_boxes[MAX_BOXES];
@@ -71,18 +73,18 @@ void read_pipe_and_box_name(char pipe_name[], char box_name[]) {
     read_box_name(box_name);
 }
 
-void request_handler(char *op_code) {
+void request_handler() {
     int fcli;
     ssize_t ret;
     char buffer[BUFFER_SIZE];
     char message[MESSAGE_SIZE];
     char pipe_name[256];
     char box_name[32];
+    long index;
 
     memset(buffer, 0, BUFFER_SIZE);
     memset(pipe_name, 0, 256);
     memset(box_name, 0, 32);
-    long index;
 
     switch((uint8_t)op_code[0]) {
         case 1: // create publisher
@@ -141,12 +143,10 @@ void request_handler(char *op_code) {
                 ret = write(fcli, message, offset);
                 len--;
             }
-
             tfs_close(fd);
             // while(true) {
 
             // }
-
             system_boxes[index]->n_subscribers--;
             close(fcli);
             break;
@@ -184,11 +184,13 @@ int main(int argc, char **argv) {
     }
 
     char *register_pipe_name = argv[1];
-    size_t num_threads = (size_t) atoi(argv[2]);
-    // pthread_t threads[num_threads];
+    size_t max_num_threads = (size_t) atoi(argv[2]);
+    size_t num_threads = 0;
+    pthread_t threads[num_threads];
 
     tfs_params params = tfs_default_params();
-    params.max_open_files_count = num_threads;
+    params.max_open_files_count = max_num_threads;
+
     params.max_inode_count = MAX_BOXES;
     if (tfs_init(&params) == -1) {
         return -1;
@@ -213,13 +215,12 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    // // create threads
-    // for (int i = 0; i < num_threads; i++) {
-    //     if (pthread_create(&threads[i], NULL, request_handler, NULL) != 0) {
-    //         printf("ERROR Creating thread.\n");
-    //         return -1;
-    //     } 
-    // }
+    for (int i = 0; i < num_threads; i++) {
+        if (pthread_create(&threads[i], NULL, request_handler, NULL) != 0) {
+            printf("ERROR Creating thread.\n");
+            return -1;
+        } 
+    }
     
     // /make register_pipe_name
     makefifo(register_pipe_name);
@@ -230,16 +231,11 @@ int main(int argc, char **argv) {
 
     int ret_q;
     char buffer[BUFFER_SIZE];
-    char message[BUFFER_SIZE];
     // keep reading op_codes from clients
     while(true) {
         ssize_t ret = safe_read(fserv, buffer, BUFFER_SIZE);
-        if (ret > 0) ret_q = pcq_enqueue(queue, buffer);
-        
-        if (ret_q >= 0) {
-            memcpy(message, queue->pcq_buffer[ret_q], BUFFER_SIZE);
-            
-            pcq_dequeue(queue);
+        if (ret > 0)  {
+            ret_q = pcq_enqueue(queue, buffer);
         }
         memset(buffer, 0, 1);
     }

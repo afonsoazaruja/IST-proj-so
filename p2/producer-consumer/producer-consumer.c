@@ -37,20 +37,27 @@ int pcq_destroy(pc_queue_t *queue) {
 int pcq_enqueue(pc_queue_t *queue, void *elem) {
     (char*) elem;
 
-    if (pthread_mutex_lock(&queue->pcq_pusher_condvar_lock) != 0)
+    if (pthread_mutex_lock(&queue->pcq_pusher_condvar_lock) != 0) {
         exit(EXIT_FAILURE);
+    }
+    if (pthread_mutex_lock(&queue->pcq_popper_condvar_lock) != 0) {
+        exit(EXIT_FAILURE);
+    }
 
     while (queue->pcq_current_size == queue->pcq_capacity) {
         pthread_cond_wait(&queue->pcq_pusher_condvar, 
         &queue->pcq_pusher_condvar_lock);
     }
     queue->pcq_buffer[queue->pcq_tail++] = elem;
+    pthread_cond_signal(&queue->pcq_popper_condvar);
     
     if (queue->pcq_tail == queue->pcq_capacity) {
         queue->pcq_tail = 0;
     }
 
     if (pthread_mutex_unlock(&queue->pcq_pusher_condvar_lock) != 0)
+        exit(EXIT_FAILURE);
+    if (pthread_mutex_lock(&queue->pcq_popper_condvar_lock) != 0)
         exit(EXIT_FAILURE);
 
     return queue->pcq_head;
@@ -60,19 +67,26 @@ void *pcq_dequeue(pc_queue_t *queue) {
     if (pthread_mutex_lock(&queue->pcq_pusher_condvar_lock) != 0) {
         exit(EXIT_FAILURE);
     }
+    if (pthread_mutex_lock(&queue->pcq_popper_condvar_lock) != 0) {
+        exit(EXIT_FAILURE);
+    }
 
-    // while(queue->pcq_current_size == 0) {
-    //     pthread_cond_wait(&queue->pcq_popper_condvar,
-    //     &queue->pcq_popper_condvar_lock);
-    // }
+     while(queue->pcq_current_size == 0) {
+         pthread_cond_wait(&queue->pcq_popper_condvar,
+         &queue->pcq_popper_condvar_lock);
+     }
     
-
     queue->pcq_buffer[queue->pcq_head++] = NULL;
+    pthread_cond_signal(&queue->pcq_pusher_condvar);
 
     if (queue->pcq_head == queue->pcq_capacity) {
         queue->pcq_head = 0;
     }
-     
+
+    if (pthread_mutex_unlock(&queue->pcq_pusher_condvar_lock) != 0)
+        exit(EXIT_FAILURE);
+    if (pthread_mutex_lock(&queue->pcq_popper_condvar_lock) != 0) 
+        exit(EXIT_FAILURE);     
 }
 
 
