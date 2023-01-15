@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include "producer-consumer.h"
 
-
 int pcq_create(pc_queue_t *queue, size_t capacity) {
     queue->pcq_capacity = capacity;
     queue->pcq_current_size = 0;
@@ -54,7 +53,7 @@ int pcq_enqueue(pc_queue_t *queue, void *elem) {
     if (pthread_mutex_unlock(&queue->pcq_pusher_condvar_lock) != 0)
         exit(EXIT_FAILURE);
 
-    return 0;
+    return queue->pcq_head;
 }
 
 void *pcq_dequeue(pc_queue_t *queue) {
@@ -66,6 +65,7 @@ void *pcq_dequeue(pc_queue_t *queue) {
     //     pthread_cond_wait(&queue->pcq_popper_condvar,
     //     &queue->pcq_popper_condvar_lock);
     // }
+    
 
     queue->pcq_buffer[queue->pcq_head++] = NULL;
 

@@ -197,9 +197,9 @@ int main(int argc, char **argv) {
     init_boxes();
     threads_availability = malloc(sizeof(int) * ((size_t) (num_threads)));
 
-    // pc_queue_t *queue = malloc(sizeof(pc_queue_t));
+    pc_queue_t *queue = malloc(sizeof(pc_queue_t));
 
-    // pcq_create(queue, num_threads);
+    pcq_create(queue, num_threads);
 
     // initialize mutexes
     if (pthread_mutex_init(mutex_boxes, NULL) != 0) {
@@ -213,13 +213,13 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    // create threads
-    for (int i = 0; i < num_threads; i++) {
-        if (pthread_create(&threads[i], NULL, request_handler, NULL) != 0) {
-            printf("ERROR Creating thread.\n");
-            return -1;
-        } 
-    }
+    // // create threads
+    // for (int i = 0; i < num_threads; i++) {
+    //     if (pthread_create(&threads[i], NULL, request_handler, NULL) != 0) {
+    //         printf("ERROR Creating thread.\n");
+    //         return -1;
+    //     } 
+    // }
     
     // /make register_pipe_name
     makefifo(register_pipe_name);
@@ -228,15 +228,23 @@ int main(int argc, char **argv) {
     fserv = open_pipe(register_pipe_name, O_RDONLY);
     int fd = open_pipe(register_pipe_name, O_WRONLY);
 
-    char op_code[1] = {0};
+    int ret_q;
+    char buffer[BUFFER_SIZE];
+    char message[BUFFER_SIZE];
     // keep reading op_codes from clients
     while(true) {
-        ssize_t ret = safe_read(fserv, op_code, 1);
-        if (ret > 0 && op_code[0] != 0) request_handler(op_code);
-        memset(op_code, 0, 1);
+        ssize_t ret = safe_read(fserv, buffer, BUFFER_SIZE);
+        if (ret > 0) ret_q = pcq_enqueue(queue, buffer);
+        
+        if (ret_q >= 0) {
+            memcpy(message, queue->pcq_buffer[ret_q], BUFFER_SIZE);
+            
+            pcq_dequeue(queue);
+        }
+        memset(buffer, 0, 1);
     }
 
-    // pcq_destroy(queue);
+    pcq_destroy(queue);
     free(threads_availability);
     destroy_system_boxes();
     close(fd);
