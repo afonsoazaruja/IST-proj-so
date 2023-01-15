@@ -7,8 +7,8 @@
 #define MAX_BOXES 64
 
 int fserv;
-pthread_mutex_t mutex_boxes[64];
-pthread_cond_t cond_boxes;
+pthread_mutex_t mutex_boxes[MAX_BOXES];
+pthread_cond_t cond_boxes[MAX_BOXES];
 
 void uint64_to_bytes(uint64_t value, char bytes[], int index) {
     for (int i = 0; i < 8; i++) {
@@ -151,7 +151,6 @@ void request_handler(char *op_code) {
             break;
     
         case 3: // create box
-            puts("criou");
             read_pipe_and_box_name(pipe_name, box_name);
             fcli = open_pipe(pipe_name, O_WRONLY);
             send_response(4, create_box(box_name), fcli);
@@ -185,6 +184,7 @@ int main(int argc, char **argv) {
 
     char *register_pipe_name = argv[1];
     size_t num_threads = (size_t) atoi(argv[2]);
+    // pthread_t threads[num_threads];
 
     tfs_params params = tfs_default_params();
     params.max_open_files_count = num_threads;
@@ -199,14 +199,24 @@ int main(int argc, char **argv) {
 
     // pcq_create(queue, num_threads);
 
-    // if (pthread_mutex_init(mutex_boxes, NULL) != 0) {
-    //     perror("Failed to init Mutex");
-    //     exit(EXIT_FAILURE);
-    // }
+    // initialize mutexes
+    if (pthread_mutex_init(mutex_boxes, NULL) != 0) {
+        perror("Failed to init Mutex");
+        exit(EXIT_FAILURE);
+    }
 
-    // if (pthread_cond_init(&cond_boxes, NULL) != 0) {
-    //     perror("Failed to init Mutex");
-    //     exit(EXIT_FAILURE);
+    // initialize conditional variables
+    if (pthread_cond_init(cond_boxes, NULL) != 0) {
+        perror("Failed to init Mutex");
+        exit(EXIT_FAILURE);
+    }
+
+    // create threads
+    // for (int i = 0; i < num_threads; i++) {
+    //     if (pthread_create(&threads[i], NULL, request_handler, NULL) != 0) {
+    //         printf("ERROR Creating thread.\n");
+    //         return -1;
+    //     } 
     // }
     
     // /make register_pipe_name
@@ -224,6 +234,7 @@ int main(int argc, char **argv) {
         memset(op_code, 0, 1);
     }
     // pcq_destroy(queue);
+    destroy_system_boxes();
     close(fd);
     close(fserv);
     return 0;
