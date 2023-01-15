@@ -1,11 +1,12 @@
 #include "../utils/logging.h"
 #include "boxes.h"
+#include "producer-consumer.h"
 
 #define BUFFER_SIZE 1200
 #define MESSAGE_SIZE 1024
 #define MAX_BOXES 64
 
-int fcli, fserv;
+int fserv;
 pthread_mutex_t mutex_boxes[64];
 pthread_cond_t cond_boxes;
 
@@ -21,7 +22,7 @@ void int32_to_bytes(int32_t value, char bytes[], int index) {
     }
 }
 
-void send_response(uint8_t op_code, int32_t ret_code) {
+void send_response(uint8_t op_code, int32_t ret_code, int pipe) {
     char buffer[BUFFER_SIZE];
     memset(buffer, 0, BUFFER_SIZE);
     buffer[0] = (char) op_code;
@@ -30,12 +31,12 @@ void send_response(uint8_t op_code, int32_t ret_code) {
         case 6: // remove box response
             int32_to_bytes(ret_code, buffer, 1);
             memcpy(buffer+5, err_msg, strlen(err_msg));
-            safe_write(fcli, buffer, BUFFER_SIZE);
+            safe_write(pipe, buffer, BUFFER_SIZE);
             break;
         case 8: // list boxes
             if (num_of_boxes == 0) {
                 buffer[1] = 1;
-                safe_write(fcli, buffer, BUFFER_SIZE);
+                safe_write(pipe, buffer, BUFFER_SIZE);
                 break;
             }
             int n_boxes = num_of_boxes;
@@ -49,7 +50,7 @@ void send_response(uint8_t op_code, int32_t ret_code) {
                     uint64_to_bytes(system_boxes[i]->box_size, buffer, 34); 
                     uint64_to_bytes(system_boxes[i]->n_publishers, buffer, 42); 
                     uint64_to_bytes(system_boxes[i]->n_subscribers, buffer, 50); 
-                    safe_write(fcli, buffer, BUFFER_SIZE);
+                    safe_write(pipe, buffer, BUFFER_SIZE);
                 }
             }
             break;
@@ -70,9 +71,10 @@ void read_pipe_and_box_name(char pipe_name[], char box_name[]) {
 }
 
 void request_handler(char *op_code) {
+    int fcli;
     ssize_t ret;
     char buffer[BUFFER_SIZE];
-    // char message[MESSAGE_SIZE];
+    char message[MESSAGE_SIZE];
     char pipe_name[256];
     char box_name[32];
 
@@ -125,42 +127,48 @@ void request_handler(char *op_code) {
             fd = tfs_open(box_name, TFS_O_CREAT);
             len = system_boxes[index]->box_size;
             while(len > 0) {
+                memset(message, 0, 1024);
+                memset(buffer, 0, BUFFER_SIZE);
+                size_t offset = 0;
                 ret = tfs_read(fd, buffer, 1);
-                while(buffer[0] != '\0') {
-                    fprintf(stdout, "%c",buffer[0]);
-                    len--;
+                while(buffer[0] != 0) {
+                    memcpy(message+offset, buffer, 1);
+                    len--; offset++;
                     ret = tfs_read(fd, buffer, 1);
                 }
+                message[offset] = '\0';
+                ret = write(fcli, message, offset);
                 len--;
-                fprintf(stdout, "\n");
             }
-            tfs_close(fd);
-            while(true) {
 
-            }
+            tfs_close(fd);
+            // while(true) {
+
+            // }
 
             system_boxes[index]->n_subscribers--;
             close(fcli);
             break;
     
         case 3: // create box
+            puts("criou");
             read_pipe_and_box_name(pipe_name, box_name);
             fcli = open_pipe(pipe_name, O_WRONLY);
-            send_response(4, create_box(box_name));
+            send_response(4, create_box(box_name), fcli);
             close(fcli);
             break;
         
         case 5: // remove box
             read_pipe_and_box_name(pipe_name, box_name);
             fcli = open_pipe(pipe_name, O_WRONLY);
-            send_response(6, remove_box(box_name));
+            send_response(6, remove_box(box_name), fcli);
             close(fcli);
             break;
         
         case 7: // list
             read_pipe_name(pipe_name);
             fcli = open_pipe(pipe_name, O_WRONLY);
-            send_response(8, 0);
+            send_response(8, 0, fcli);
             close(fcli);
             break;
             
@@ -184,7 +192,12 @@ int main(int argc, char **argv) {
     if (tfs_init(&params) == -1) {
         return -1;
     }
+
     init_boxes();
+
+    // pc_queue_t *queue = malloc(sizeof(pc_queue_t));
+
+    // pcq_create(queue, num_threads);
 
     // if (pthread_mutex_init(mutex_boxes, NULL) != 0) {
     //     perror("Failed to init Mutex");
@@ -210,8 +223,8 @@ int main(int argc, char **argv) {
         if (ret > 0 && op_code[0] != 0) request_handler(op_code);
         memset(op_code, 0, 1);
     }
+    // pcq_destroy(queue);
     close(fd);
     close(fserv);
-    close(fcli);
     return 0;
 }

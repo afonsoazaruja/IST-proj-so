@@ -50,13 +50,13 @@ int main(int argc, char **argv) {
 
     // read response from mbroker
     char buffer[BUFFER_SIZE];
-    ssize_t ret = read(fcli, buffer, BUFFER_SIZE);
-    if (ret <= 0) return -1;
+    ssize_t ret;
 
     while(true) {
+        memset(buffer, 0, BUFFER_SIZE);
         ret = safe_read(fcli, buffer, BUFFER_SIZE);
-        fprintf(stdout, "%s\n", buffer);
         if (ret == 0) break;
+        fprintf(stdout, "%s\n", buffer);
     }
 
     return 0;
