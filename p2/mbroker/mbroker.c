@@ -1,6 +1,6 @@
 #include "../utils/logging.h"
 #include "boxes.h"
-#include "producer-consumer.h"
+#include "../producer-consumer/producer-consumer.h"
 
 #define BUFFER_SIZE 1200
 #define MESSAGE_SIZE 1024
@@ -9,6 +9,7 @@
 int fserv;
 pthread_mutex_t mutex_boxes[MAX_BOXES];
 pthread_cond_t cond_boxes[MAX_BOXES];
+int *threads_availability;
 
 void uint64_to_bytes(uint64_t value, char bytes[], int index) {
     for (int i = 0; i < 8; i++) {
@@ -194,6 +195,7 @@ int main(int argc, char **argv) {
     }
 
     init_boxes();
+    threads_availability = malloc(sizeof(int) * ((size_t) (num_threads)));
 
     // pc_queue_t *queue = malloc(sizeof(pc_queue_t));
 
@@ -212,12 +214,12 @@ int main(int argc, char **argv) {
     }
 
     // create threads
-    // for (int i = 0; i < num_threads; i++) {
-    //     if (pthread_create(&threads[i], NULL, request_handler, NULL) != 0) {
-    //         printf("ERROR Creating thread.\n");
-    //         return -1;
-    //     } 
-    // }
+    for (int i = 0; i < num_threads; i++) {
+        if (pthread_create(&threads[i], NULL, request_handler, NULL) != 0) {
+            printf("ERROR Creating thread.\n");
+            return -1;
+        } 
+    }
     
     // /make register_pipe_name
     makefifo(register_pipe_name);
@@ -233,7 +235,9 @@ int main(int argc, char **argv) {
         if (ret > 0 && op_code[0] != 0) request_handler(op_code);
         memset(op_code, 0, 1);
     }
+
     // pcq_destroy(queue);
+    free(threads_availability);
     destroy_system_boxes();
     close(fd);
     close(fserv);

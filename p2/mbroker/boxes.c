@@ -52,8 +52,6 @@ int remove_box(char *box_name) {
         return -1;
     }
 
-    free(system_boxes[index]);
-    system_boxes[index] = malloc(sizeof(box));
     system_boxes[index]->state = FREE;
     system_boxes[index]->box_name[0] = '\0';
     num_of_boxes--;

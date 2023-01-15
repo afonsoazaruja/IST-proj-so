@@ -12,9 +12,10 @@
 
 #define BUFFER_SIZE 1024
 
-int fcli;
+int fcli, num_of_msgs = 0;
 
 void signal_handler() {
+    fprintf(stdout, "%d", num_of_msgs);
     close(fcli);
     exit(EXIT_FAILURE);
 }
@@ -56,6 +57,7 @@ int main(int argc, char **argv) {
         memset(buffer, 0, BUFFER_SIZE);
         ret = safe_read(fcli, buffer, BUFFER_SIZE);
         if (ret == 0) break;
+        num_of_msgs++;
         fprintf(stdout, "%s\n", buffer);
     }
 
